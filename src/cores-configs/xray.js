@@ -822,7 +822,7 @@ const xrayConfigTemp = {
             port: 10853,
             protocol: "dokodemo-door",
             settings: {
-                address: "1.1.1.1",
+                address: "8.8.8.8",
                 network: "tcp,udp",
                 port: 53
             },
