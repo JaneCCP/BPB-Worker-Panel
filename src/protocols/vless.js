@@ -48,7 +48,7 @@ export async function VlOverWSHandler(request) {
             } = processVLHeader(chunk, globalConfig.userID);
             
             address = addressRemote;
-            portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? "udp " : "tcp "} `;
+            portWithRandomLog = `${portRemote}--${Math.random().toString(36).substr(2, 4)} ${isUDP ? "udp " : "tcp "} `;
             
             if (hasError) {
                 // controller.error(message);
