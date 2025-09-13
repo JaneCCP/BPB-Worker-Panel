@@ -1,0 +1,66 @@
+name: 问题报告
+description: 报告使用BPB面板时遇到的问题
+body:
+    - type: markdown
+      attributes:
+          value: |
+              请确保提供详细的报告。这可以为开发者和寻找解决方案的用户节省时间。强烈建议提供尽可能多的信息，包括截图和日志。这将帮助我们更好地理解问题并更有效地响应。
+    - type: checkboxes
+      id: confirm-search
+      attributes:
+          label: 注意事项
+          description: |
+            在提交报告前，请搜索[现有问题](https://github.com/bia-pain-bache/BPB-Worker-Panel/issues)并阅读[常见问题](https://bia-pain-bache.github.io/BPB-Worker-Panel/faq/)。<br>
+          options:
+              - label: 我已搜索过，没有找到类似的问题
+                required: true
+              - label: 我已阅读常见问题，没有找到相关问题
+                required: true
+    - type: textarea
+      id: problem
+      attributes:
+          label: 发生了什么？
+          description: |
+              请提供尽可能多的信息。如果信息不足，可能会导致您的问题无法及时得到解决。<br>
+      validations:
+          required: true
+    - type: textarea
+      id: reproduce
+      attributes:
+          label: 最小复现步骤
+          placeholder: |
+              1. 前往 '...'
+              2. 点击 '....'
+              3. 滚动到 '....'
+              4. 查看错误
+    - type: textarea
+      id: logs
+      attributes:
+          label: 相关日志输出
+          description: |
+            如果有连接问题，请参考客户端日志，否则请粘贴面板错误。<br>
+          render: shell
+      validations:
+          required: true
+    - type: input
+      id: panel-version
+      attributes:
+          label: 面板版本
+      validations:
+          required: true
+    - type: input
+      id: client-name
+      attributes:
+          label: 客户端
+          description: |
+              请指定您使用的客户端应用程序，这对连接故障排除是必需的。<br>
+      validations:
+          required: false
+    - type: input
+      id: client-version
+      attributes:
+          label: 客户端版本
+          description: |
+              请指定客户端版本，这对连接故障排除是必需的。<br>
+      validations:
+          required: false

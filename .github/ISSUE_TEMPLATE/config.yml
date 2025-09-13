@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+    - name: 常见问题
+      url: https://github.com/bia-pain-bache/BPB-Worker-Panel/blob/main/docs/faq.md
+      about: 在提问或提交问题之前，请先阅读常见问题。
