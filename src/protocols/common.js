@@ -35,10 +35,28 @@ export async function handleTCPOutBound(
         const getRandomValue = (arr) => arr[Math.floor(Math.random() * arr.length)];
         const parseIPs = (value) => value ? value.split(',').map(val => val.trim()).filter(Boolean) : undefined;
 
+        // 获取当前的env对象，用于访问KV
+        const env = webSocket[Symbol.for('env')] || {};
+
         if (proxyMode === 'proxyip') {
             log(`直接连接失败，尝试使用代理IP连接 ${addressRemote}`);
             try {
-                const proxyIPs = parseIPs(wsConfig.envProxyIPs) ||  wsConfig.defaultProxyIPs;
+                let currentProxyIPs = wsConfig.envProxyIPs;
+                
+                // 如果有KV访问权限，实时从KV读取最新的proxyIPs
+                if (env.kv) {
+                    try {
+                        const proxySettings = await env.kv.get("proxySettings", { type: 'json' });
+                        if (proxySettings && proxySettings.proxyIPs) {
+                            currentProxyIPs = proxySettings.proxyIPs;
+                            log(`从KV实时读取proxyIPs: ${currentProxyIPs}`);
+                        }
+                    } catch (kvError) {
+                        console.warn('从KV读取proxyIPs失败，使用缓存值:', kvError);
+                    }
+                }
+                
+                const proxyIPs = parseIPs(currentProxyIPs) || wsConfig.defaultProxyIPs;
                 const ips = panelIPs.length ? panelIPs : proxyIPs;
                 const proxyIP = getRandomValue(ips);
                 const { host, port } = parseHostPort(proxyIP);
@@ -51,7 +69,22 @@ export async function handleTCPOutBound(
         } else if (proxyMode === 'prefix') {
             log(`直接连接失败，尝试为 ${addressRemote} 生成动态前缀`);
             try {
-                const prefixes = parseIPs(wsConfig.envPrefixes) || wsConfig.defaultPrefixes;
+                let currentPrefixes = wsConfig.envPrefixes;
+                
+                // 如果有KV访问权限，实时从KV读取最新的prefixes
+                if (env.kv) {
+                    try {
+                        const proxySettings = await env.kv.get("proxySettings", { type: 'json' });
+                        if (proxySettings && proxySettings.prefixes) {
+                            currentPrefixes = proxySettings.prefixes;
+                            log(`从KV实时读取prefixes: ${currentPrefixes}`);
+                        }
+                    } catch (kvError) {
+                        console.warn('从KV读取prefixes失败，使用缓存值:', kvError);
+                    }
+                }
+                
+                const prefixes = parseIPs(currentPrefixes) || wsConfig.defaultPrefixes;
                 const ips = panelIPs.length ? panelIPs : prefixes;
                 const prefix = getRandomValue(ips);
                 const dynamicProxyIP = await getDynamicProxyIP(addressRemote, prefix);

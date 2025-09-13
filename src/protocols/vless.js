@@ -8,6 +8,10 @@ export async function VlOverWSHandler(request) {
 
     webSocket.accept();
 
+    // 将env对象存储到WebSocket中，以便common.js的retry函数访问
+    const env = request[Symbol.for('env')] || {};
+    webSocket[Symbol.for('env')] = env;
+
     let address = "";
     let portWithRandomLog = "";
     const log = (info, event) => {
