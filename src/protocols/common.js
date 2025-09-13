@@ -35,42 +35,12 @@ export async function handleTCPOutBound(
         const getRandomValue = (arr) => arr[Math.floor(Math.random() * arr.length)];
         const parseIPs = (value) => value ? value.split(',').map(val => val.trim()).filter(Boolean) : undefined;
 
-        // 获取当前的env对象，用于访问KV
-        const env = webSocket[Symbol.for('env')] || {};
-
         if (proxyMode === 'proxyip') {
             log(`直接连接失败，尝试使用代理IP连接 ${addressRemote}`);
             try {
-                let currentProxyIPs = wsConfig.envProxyIPs;
-                
-                // 强制从KV实时读取，绕过缓存
-                if (env.kv) {
-                    try {
-                        // 使用cacheTtl: 0强制绕过缓存
-                        const proxySettings = await env.kv.get("proxySettings", { 
-                            type: 'json',
-                            cacheTtl: 0  // 强制实时读取
-                        });
-                        if (proxySettings && proxySettings.proxyIPs) {
-                            currentProxyIPs = proxySettings.proxyIPs;
-                            log(`强制从KV实时读取proxyIPs: ${currentProxyIPs}`);
-                        } else {
-                            log(`KV中proxyIPs为空，使用默认值: ${currentProxyIPs}`);
-                        }
-                    } catch (kvError) {
-                        console.warn('从KV读取proxyIPs失败，使用缓存值:', kvError);
-                    }
-                }
-                
-                const proxyIPs = parseIPs(currentProxyIPs) || wsConfig.defaultProxyIPs;
+                const proxyIPs = parseIPs(wsConfig.envProxyIPs) ||  wsConfig.defaultProxyIPs;
                 const ips = panelIPs.length ? panelIPs : proxyIPs;
-                
-                if (!ips || ips.length === 0) {
-                    throw new Error('没有可用的代理IP');
-                }
-                
                 const proxyIP = getRandomValue(ips);
-                log(`使用代理IP: ${proxyIP}`);
                 const { host, port } = parseHostPort(proxyIP);
                 tcpSocket = await connectAndWrite(host || addressRemote, port || portRemote);
             } catch (error) {
@@ -81,35 +51,9 @@ export async function handleTCPOutBound(
         } else if (proxyMode === 'prefix') {
             log(`直接连接失败，尝试为 ${addressRemote} 生成动态前缀`);
             try {
-                let currentPrefixes = wsConfig.envPrefixes;
-                
-                // 强制从KV实时读取，绕过缓存
-                if (env.kv) {
-                    try {
-                        const proxySettings = await env.kv.get("proxySettings", { 
-                            type: 'json',
-                            cacheTtl: 0  // 强制实时读取
-                        });
-                        if (proxySettings && proxySettings.prefixes) {
-                            currentPrefixes = proxySettings.prefixes;
-                            log(`强制从KV实时读取prefixes: ${currentPrefixes}`);
-                        } else {
-                            log(`KV中prefixes为空，使用默认值: ${currentPrefixes}`);
-                        }
-                    } catch (kvError) {
-                        console.warn('从KV读取prefixes失败，使用缓存值:', kvError);
-                    }
-                }
-                
-                const prefixes = parseIPs(currentPrefixes) || wsConfig.defaultPrefixes;
+                const prefixes = parseIPs(wsConfig.envPrefixes) || wsConfig.defaultPrefixes;
                 const ips = panelIPs.length ? panelIPs : prefixes;
-                
-                if (!ips || ips.length === 0) {
-                    throw new Error('没有可用的前缀');
-                }
-                
                 const prefix = getRandomValue(ips);
-                log(`使用前缀: ${prefix}`);
                 const dynamicProxyIP = await getDynamicProxyIP(addressRemote, prefix);
                 tcpSocket = await connectAndWrite(dynamicProxyIP, portRemote);
             } catch (error) {
