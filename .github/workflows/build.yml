@@ -5,6 +5,12 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      worker_name:
+        description: 'Worker名称 (可选)'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   build:
@@ -61,9 +67,18 @@ jobs:
           # 动态生成当前日期
           CURRENT_DATE=$(date -u +"%Y-%m-%d")
           
+          # 确定worker名称：优先使用表单输入，其次使用Secrets
+          if [ -n "${{ github.event.inputs.worker_name }}" ]; then
+            WORKER_NAME="${{ github.event.inputs.worker_name }}"
+          else
+            WORKER_NAME="${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+          fi
+          
+          echo "使用Worker名称: $WORKER_NAME"
+          
           # 创建基础wrangler.toml
           cat > wrangler.toml << EOF
-          name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+          name = "$WORKER_NAME"
           main = "dist/worker.js"
           compatibility_date = "$CURRENT_DATE"
           account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
@@ -81,7 +96,7 @@ jobs:
             cat >> wrangler.toml << EOF
           
           [env.production]
-          name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+          name = "$WORKER_NAME"
           routes = [
             { pattern = "${{ secrets.CLOUDFLARE_ROUTE_URL }}", custom_domain = true }
           ]
@@ -90,7 +105,7 @@ jobs:
             cat >> wrangler.toml << EOF
           
           [env.production]
-          name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+          name = "$WORKER_NAME"
           EOF
           fi
 
