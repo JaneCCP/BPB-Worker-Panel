@@ -43,7 +43,7 @@ export async function updateDataset(request, env) {
         return typeof callback === 'function' ? callback(value) : value;
     }
 
-    const remoteDNS = populateField('remoteDNS', 'https://8.8.8.8/dns-query');
+    const remoteDNS = populateField('remoteDNS', 'https://dns.google/dns-query');
     const initDoh = async () => {
         const { host, isHostDomain } = getDomain(remoteDNS);
         const dohHost = {
@@ -63,7 +63,7 @@ export async function updateDataset(request, env) {
     const settings = {
         remoteDNS,
         dohHost: await initDoh(), 
-        localDNS: populateField('localDNS', '8.8.8.8'),
+        localDNS: populateField('localDNS', '114.114.114.114'),
         antiSanctionDNS: populateField('antiSanctionDNS', '8.8.4.4'),
         VLTRFakeDNS: populateField('VLTRFakeDNS', false),
         proxyIPMode: populateField('proxyIPMode', 'proxyip'),
