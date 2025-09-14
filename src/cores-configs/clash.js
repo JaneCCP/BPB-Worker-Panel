@@ -12,7 +12,7 @@ async function buildClashDNS(isChain, isWarp) {
         "ipv6": isIPv6,
         "respect-rules": true,
         "use-system-hosts": false,
-        "nameserver": [`${isWarp ? '1.1.1.1' : settings.remoteDNS}#✅ 选择器`],
+        "nameserver": [`${isWarp ? '1.1.1.1' : settings.remoteDNS}#✅ 全局节点`],
         "proxy-server-nameserver": [finalLocalDNS],
         "nameserver-policy": {
             "raw.githubusercontent.com": finalLocalDNS,
@@ -166,7 +166,7 @@ function buildClashRoutingRules(isWarp) {
         if (geoip.length) addRoutingRule(null, geoip, null, null, type);
     }
 
-    rules.push("MATCH,✅ 选择器");
+    rules.push("MATCH,✅ 全局节点");
     return { rules, ruleProviders };
 }
 
@@ -369,7 +369,7 @@ async function buildClashConfig(selectorTags, urlTestTags, secondUrlTestTags, is
     config['rule-providers'] = ruleProviders;
 
     const selector = {
-        "name": "✅ 全局选择",
+        "name": "✅ 全局节点",
         "type": "select",
         "proxies": selectorTags
     };

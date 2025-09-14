@@ -11,7 +11,7 @@ async function buildSingBoxDNS(isWarp) {
         {
             type: isWarp ? "udp" : dnsProtocol,
             server: isWarp ? "1.1.1.1" : settings.dohHost.host,
-            detour: "✅ 选择器",
+            detour: "✅ 全局节点",
             tag: "dns-remote"
         },
     ];
@@ -185,7 +185,7 @@ function buildSingBoxRoutingRules(isWarp) {
         },
         {
             clash_mode: "Global",
-            outbound: "✅ 选择器"
+            outbound: "✅ 全局节点"
         },
         {
             action: "sniff"
@@ -292,7 +292,7 @@ function buildSingBoxRoutingRules(isWarp) {
             rewrite_ttl: 60
         },
         // override_android_vpn: true,
-        final: "✅ 选择器"
+        final: "✅ 全局节点"
     }
 }
 
@@ -706,7 +706,7 @@ const singboxConfigTemp = {
     outbounds: [
         {
             type: "selector",
-            tag: "✅ 选择器",
+            tag: "✅ 全局节点",
             outbounds: [],
             interrupt_exist_connections: false
         },
