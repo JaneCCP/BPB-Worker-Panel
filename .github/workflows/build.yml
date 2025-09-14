@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build, Release and Deploy
 
 permissions:
   contents: write
@@ -8,16 +8,20 @@ on:
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-
+    outputs:
+      release_version: ${{ steps.get_version.outputs.RELEASE_VERSION }}
+      release_body: ${{ steps.read_release.outputs.RELEASE_BODY }}
     steps:
-      - name: Check out the code
+      - name: Check out code
         uses: actions/checkout@v4
 
       - name: Get release version
         id: get_version
-        run: echo "RELEASE_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
+        run: |
+          VERSION=$(jq -r .version package.json)
+          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check release version
         run: echo "Release version is $RELEASE_VERSION"
@@ -37,24 +41,50 @@ jobs:
         id: read_release
         shell: bash
         run: |
-          r=$(cat RELEASE.md)         
-          r="${r//'%'/'%25'}"                               
-          r="${r//$'\n'/'%0A'}"                             
-          r="${r//$'\r'/'%0D'}"                             
-          echo "RELEASE_BODY=$r" >> $GITHUB_OUTPUT          
+          r=$(cat RELEASE.md)
+          r="${r//'%'/'%25'}"
+          r="${r//$'\n'/'%0A'}"
+          r="${r//$'\r'/'%0D'}"
+          echo "RELEASE_BODY=$r" >> $GITHUB_OUTPUT
 
-      - name: Upload Release Assets
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+
+      - name: Create GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/*
-          tag: v${{ env.RELEASE_VERSION }}
-          release_name: Release v${{ env.RELEASE_VERSION }}
+          tag: v${{ needs.build.outputs.release_version }}
+          release_name: Release v${{ needs.build.outputs.release_version }}
           overwrite: true
           file_glob: true
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           promote: ${{ github.ref == 'refs/heads/main' }}
-          body: ${{ steps.read_release.outputs.RELEASE_BODY }}
+          body: ${{ needs.build.outputs.release_body }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
@@ -64,15 +94,15 @@ jobs:
           command: deploy dist/worker.js --name ${{ secrets.CLOUDFLARE_WORKER_NAME }}
           preCommands: |
             cat > wrangler.toml << EOF
-            name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
-            main = "worker.js"
-            compatibility_date = "2024-01-01"
-            compatibility_flags = ["nodejs_compat"]
-            
-            [[kv_namespaces]]
-            binding = "kv"
-            id = "${{ secrets.CLOUDFLARE_KV_ID }}"
-            
-            [vars]
-            ENVIRONMENT = "production"
-            EOF
+name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "kv"
+id = "${{ secrets.CLOUDFLARE_KV_ID }}"
+
+[vars]
+ENVIRONMENT = "production"
+EOF
