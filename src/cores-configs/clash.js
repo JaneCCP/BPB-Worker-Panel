@@ -12,7 +12,7 @@ async function buildClashDNS(isChain, isWarp) {
         "ipv6": isIPv6,
         "respect-rules": true,
         "use-system-hosts": false,
-        "nameserver": [`${isWarp ? '1.1.1.1' : settings.remoteDNS}#✅ Selector`],
+        "nameserver": [`${isWarp ? '1.1.1.1' : settings.remoteDNS}#✅ 选择器`],
         "proxy-server-nameserver": [finalLocalDNS],
         "nameserver-policy": {
             "raw.githubusercontent.com": finalLocalDNS,
@@ -166,7 +166,7 @@ function buildClashRoutingRules(isWarp) {
         if (geoip.length) addRoutingRule(null, geoip, null, null, type);
     }
 
-    rules.push("MATCH,✅ Selector");
+    rules.push("MATCH,✅ 选择器");
     return { rules, ruleProviders };
 }
 
@@ -296,7 +296,7 @@ function buildClashChainOutbound() {
 
     const { server, port, uuid, flow, security, type, sni, fp, alpn, pbk, sid, headerType, host, path, serviceName } = outProxyParams;
     const chainOutbound = {
-        "name": "💦 Chain Best Ping 💥",
+        "name": "💦 链式代理 最佳延迟 💥",
         "type": atob('dmxlc3M='),
         "server": server,
         "port": +port,
@@ -304,7 +304,7 @@ function buildClashChainOutbound() {
         "uuid": uuid,
         "flow": flow,
         "network": type,
-        "dialer-proxy": "💦 Best Ping 💥"
+        "dialer-proxy": "💦 最佳延迟 💥"
     };
 
     if (security === 'tls') {
@@ -369,13 +369,13 @@ async function buildClashConfig(selectorTags, urlTestTags, secondUrlTestTags, is
     config['rule-providers'] = ruleProviders;
 
     const selector = {
-        "name": "✅ Selector",
+        "name": "✅ 选择器",
         "type": "select",
         "proxies": selectorTags
     };
 
     const urlTest = {
-        "name": isWarp ? `💦 Warp ${isPro ? 'Pro ' : ''}- Best Ping 🚀` : '💦 Best Ping 💥',
+        "name": isWarp ? `💦 Warp ${isPro ? 'Pro ' : ''}- 最佳延迟 🚀` : '💦 最佳延迟 💥',
         "type": "url-test",
         "url": "https://www.gstatic.com/generate_204",
         "interval": isWarp ? settings.bestWarpInterval : settings.bestVLTRInterval,
@@ -387,7 +387,7 @@ async function buildClashConfig(selectorTags, urlTestTags, secondUrlTestTags, is
 
     if (isWarp) {
         const secondUrlTest = structuredClone(urlTest);
-        secondUrlTest["name"] = `💦 WoW ${isPro ? 'Pro ' : ''}- Best Ping 🚀`;
+        secondUrlTest["name"] = `💦 WoW ${isPro ? 'Pro ' : ''}- 最佳延迟 🚀`;
         secondUrlTest["proxies"] = secondUrlTestTags;
         config['proxy-groups'].push(secondUrlTest);
     }
@@ -405,10 +405,10 @@ export async function getClashWarpConfig(request, env, isPro) {
     }
 
     settings.warpEndpoints.forEach((endpoint, index) => {
-        const warpTag = `💦 ${index + 1} - Warp ${isPro ? 'Pro ' : ''}🇮🇷`;
+        const warpTag = `💦 ${index + 1} - Warp ${isPro ? 'Pro ' : ''}伊朗`;
         warpTags.push(warpTag);
 
-        const wowTag = `💦 ${index + 1} - WoW ${isPro ? 'Pro ' : ''}🌍`;
+        const wowTag = `💦 ${index + 1} - WoW ${isPro ? 'Pro ' : ''}全球`;
         wowTags.push(wowTag);
 
         const warpOutbound = buildClashWarpOutbound(warpConfigs, warpTag, endpoint, '', isPro);
@@ -420,8 +420,8 @@ export async function getClashWarpConfig(request, env, isPro) {
     });
 
     const selectorTags = [
-        `💦 Warp ${isPro ? 'Pro ' : ''}- Best Ping 🚀`,
-        `💦 WoW ${isPro ? 'Pro ' : ''}- Best Ping 🚀`,
+        `💦 Warp ${isPro ? 'Pro ' : ''}- 最佳延迟 🚀`,
+        `💦 WoW ${isPro ? 'Pro ' : ''}- 最佳延迟 🚀`,
         ...warpTags,
         ...wowTags
     ];
@@ -522,7 +522,7 @@ export async function getClashNormalConfig(env) {
         });
     });
 
-    const selectorTags = ['💦 Best Ping 💥', ...tags];
+    const selectorTags = ['💦 最佳延迟 💥', ...tags];
     const config = await buildClashConfig(selectorTags, tags, null, chainProxy, false, false);
     config['proxies'].push(...outbounds.chains, ...outbounds.proxies);
 

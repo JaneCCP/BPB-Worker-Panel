@@ -753,8 +753,8 @@ export async function getXrayWarpConfigs(request, env, isPro) {
     for (const [index, endpoint] of settings.warpEndpoints.entries()) {
         const endpointHost = endpoint.split(':')[0];
 
-        const warpConfig = await buildXrayConfig(`💦 ${index + 1} - Warp${proIndicator}🇮🇷`, false, false, false, true, false, false, [endpointHost], null);
-        const WoWConfig = await buildXrayConfig(`💦 ${index + 1} - WoW${proIndicator}🌍`, false, true, false, true, false, false, [endpointHost], null);
+        const warpConfig = await buildXrayConfig(`💦 ${index + 1} - Warp${proIndicator}伊朗`, false, false, false, true, false, false, [endpointHost], null);
+        const WoWConfig = await buildXrayConfig(`💦 ${index + 1} - WoW${proIndicator}全球`, false, true, false, true, false, false, [endpointHost], null);
 
         const warpOutbound = buildXrayWarpOutbound(warpConfigs, endpoint, false);
         const WoWOutbound = buildXrayWarpOutbound(warpConfigs, endpoint, true);

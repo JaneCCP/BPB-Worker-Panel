@@ -76,7 +76,7 @@ export async function getNormalConfigs(isFragment) {
     });
 
     if (settings.outProxy) {
-        let chainRemark = `#${encodeURIComponent('💦 Chain proxy 🔗')}`;
+        let chainRemark = `#${encodeURIComponent('💦 链式代理 🔗')}`;
         if (settings.outProxy.startsWith('socks') || settings.outProxy.startsWith('http')) {
             const regex = /^(?:socks|http):\/\/([^@]+)@/;
             const isUserPass = settings.outProxy.match(regex);
@@ -110,7 +110,7 @@ export async function getHiddifyWarpConfigs(isPro) {
     settings.warpEndpoints.forEach((endpoint, index) => {
         const config = new URL('warp://config');
         config.host = endpoint;
-        config.hash = `💦 ${index + 1} - Warp 🇮🇷`;
+        config.hash = `💦 ${index + 1} - Warp 伊朗`;
 
         if (isPro) {
             config.searchParams.append('ifpm', settings.hiddifyNoiseMode);
@@ -121,7 +121,7 @@ export async function getHiddifyWarpConfigs(isPro) {
 
         const detour = new URL('warp://config');
         detour.host = '162.159.192.1:2408';
-        detour.hash = `💦 ${index + 1} - WoW 🌍`;
+        detour.hash = `💦 ${index + 1} - WoW 全球`;
 
         configs += `${config.href}&&detour=${detour.href}\n`;
     });
