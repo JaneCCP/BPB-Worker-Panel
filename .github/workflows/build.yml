@@ -93,7 +93,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy dist/worker.js --name ${{ secrets.CLOUDFLARE_WORKER_NAME }}
           preCommands: |
-            cat > wrangler.toml << EOF
+            cat > wrangler.toml <<EOF
 name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
 main = "worker.js"
 compatibility_date = "2024-01-01"
