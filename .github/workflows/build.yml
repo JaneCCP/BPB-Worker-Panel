@@ -174,22 +174,20 @@ jobs:
 
       - name: Comment deployment info
         if: success()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const workerName = '${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}';
-            const version = '${{ needs.build.outputs.release_version }}';
-            const url = process.env.worker_url || `https://${workerName}.${{ secrets.CF_WORKER_SUBDOMAIN || 'workers.dev' }}`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `🚀 **Cloudflare Worker 部署成功！**
-              
-              **Worker名称**: ${workerName}
-              **版本**: v${version}
-              **访问地址**: ${url}
-              
-              ✅ 部署完成，您的BPB Worker Panel现已上线！`
-            });
+        run: |
+          worker_name="${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
+          version="${{ needs.build.outputs.release_version }}"
+          url="${worker_url:-"https://${worker_name}.workers.dev"}"
+          
+          echo "🚀 Cloudflare Worker 部署成功！"
+          echo "Worker名称: $worker_name"
+          echo "版本: v$version"
+          echo "访问地址: $url"
+          echo "✅ 部署完成，您的BPB Worker Panel现已上线！"
+          
+          # 将部署信息写入工作流摘要
+          echo "## 🚀 Cloudflare Worker 部署成功" >> $GITHUB_STEP_SUMMARY
+          echo "- **Worker名称**: $worker_name" >> $GITHUB_STEP_SUMMARY
+          echo "- **版本**: v$version" >> $GITHUB_STEP_SUMMARY
+          echo "- **访问地址**: [$url]($url)" >> $GITHUB_STEP_SUMMARY
+          echo "- **部署时间**: $(date)" >> $GITHUB_STEP_SUMMARY
