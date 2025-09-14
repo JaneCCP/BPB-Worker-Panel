@@ -53,6 +53,7 @@ jobs:
           name: build-artifacts
           path: dist/
           retention-days: 1
+          include-hidden-files: true
 
       - name: Generate wrangler.toml
         if: github.event.inputs.deploy_to_cloudflare == 'true'
@@ -126,6 +127,30 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
+      - name: Generate wrangler.toml for deploy
+        run: |
+          # 获取当前日期作为compatibility_date
+          CURRENT_DATE=$(date +"%Y-%m-%d")
+          echo "Using compatibility_date: $CURRENT_DATE"
+          
+          cat > wrangler.toml << EOF
+          name = "${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
+          main = "dist/worker.js"
+          compatibility_date = "$CURRENT_DATE"
+          
+          [env.production]
+          name = "${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
+          account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          
+          [env.production.vars]
+          ENVIRONMENT = "production"
+          VERSION = "${{ needs.build.outputs.release_version }}"
+          COMPATIBILITY_DATE = "$CURRENT_DATE"
+          EOF
+          
+          echo "Generated wrangler.toml:"
+          cat wrangler.toml
+
       - name: Deploy to Cloudflare Workers
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -135,11 +160,15 @@ jobs:
           # 验证wrangler配置
           wrangler --version
           
+          # 检查文件是否存在
+          ls -la dist/
+          ls -la wrangler.toml
+          
           # 部署到Cloudflare
           wrangler deploy --env production --config wrangler.toml
           
           # 获取部署后的URL
-          WORKER_URL=$(wrangler deployments list --name=${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }} --format json | jq -r '.[0].url')
+          WORKER_URL=$(wrangler deployments list --name=${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }} --format json | jq -r '.[0].url' || echo "https://${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}.workers.dev")
           echo "Deployed successfully to: $WORKER_URL"
           echo "worker_url=$WORKER_URL" >> $GITHUB_ENV
 
