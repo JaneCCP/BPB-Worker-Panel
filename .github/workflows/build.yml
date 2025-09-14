@@ -78,32 +78,32 @@ jobs:
           echo "KV命名空间ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}"
           
           # 创建wrangler.toml
-            cat > wrangler.toml << EOF
-            name = "$WORKER_NAME"
-            main = "dist/worker.js"
-            compatibility_date = "$CURRENT_DATE"
-            account_id = "$CLOUDFLARE_ACCOUNT_ID"
+          cat > wrangler.toml << EOF
+name = "$WORKER_NAME"
+main = "dist/worker.js"
+compatibility_date = "$CURRENT_DATE"
+account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
 
-            [env.production]
-            name = "$WORKER_NAME"
+[env.production]
+name = "$WORKER_NAME"
 
-            [env.production.vars]
-            ENVIRONMENT = "production"
+[env.production.vars]
+ENVIRONMENT = "production"
 
-            [[env.production.kv_namespaces]]
-            binding = "kv"
-            id = "$CLOUDFLARE_KV_NAMESPACE_ID"
-            EOF
+[[env.production.kv_namespaces]]
+binding = "kv"
+id = "${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}"
+EOF
 
-            # 如果提供了路由URL，添加路由配置
-            if [ -n "$CLOUDFLARE_ROUTE_URL" ]; then
-              cat >> wrangler.toml << EOF
+          # 如果提供了路由URL，添加路由配置
+          if [ -n "${{ secrets.CLOUDFLARE_ROUTE_URL }}" ]; then
+            cat >> wrangler.toml << EOF
 
-            [[env.production.routes]]
-            pattern = "$CLOUDFLARE_ROUTE_URL"
-            custom_domain = true
-            EOF
-            fi
+[[env.production.routes]]
+pattern = "${{ secrets.CLOUDFLARE_ROUTE_URL }}"
+custom_domain = true
+EOF
+          fi
           
       - name: Debug wrangler.toml
         run: |
