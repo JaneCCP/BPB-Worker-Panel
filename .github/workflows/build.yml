@@ -5,24 +5,11 @@ permissions:
 
 on:
   workflow_dispatch:
-    inputs:
-      deploy_to_cloudflare:
-        description: 'Deploy to Cloudflare Worker'
-        required: false
-        default: 'false'
-        type: boolean
-      cf_worker_name:
-        description: 'Cloudflare Worker Name (leave empty to use default)'
-        required: false
-        type: string
 
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    
-    outputs:
-      release_version: ${{ env.RELEASE_VERSION }}
 
     steps:
       - name: Check out the code
@@ -46,41 +33,6 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Upload build artifacts
-        if: github.event.inputs.deploy_to_cloudflare == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts
-          path: dist/
-          retention-days: 1
-          include-hidden-files: true
-
-      - name: Generate wrangler.toml
-        if: github.event.inputs.deploy_to_cloudflare == 'true'
-        run: |
-          # 获取当前日期作为compatibility_date
-          CURRENT_DATE=$(date +"%Y-%m-%d")
-          echo "Using compatibility_date: $CURRENT_DATE"
-          
-          cat > wrangler.toml << EOF
-          name = "${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
-          main = "dist/worker.js"
-          compatibility_date = "$CURRENT_DATE"
-          
-          [env.production]
-          name = "${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
-          account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
-          
-          [env.production.routes]
-          pattern = "${{ secrets.CF_ROUTE_PATTERN || 'bpb-worker.*.workers.dev' }}"
-          custom_domain = "${{ secrets.CF_CUSTOM_DOMAIN || false }}"
-          
-          [env.production.vars]
-          ENVIRONMENT = "production"
-          VERSION = "${{ env.RELEASE_VERSION }}"
-          COMPATIBILITY_DATE = "$CURRENT_DATE"
-          EOF
-
       - name: Read release note
         id: read_release
         shell: bash
@@ -103,91 +55,3 @@ jobs:
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           promote: ${{ github.ref == 'refs/heads/main' }}
           body: ${{ steps.read_release.outputs.RELEASE_BODY }}
-
-  deploy:
-    if: github.event.inputs.deploy_to_cloudflare == 'true'
-    needs: build
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Check out the code
-        uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: dist/
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "latest"
-
-      - name: Install Wrangler
-        run: npm install -g wrangler
-
-      - name: Generate wrangler.toml for deploy
-        run: |
-          # 获取当前日期作为compatibility_date
-          CURRENT_DATE=$(date +"%Y-%m-%d")
-          echo "Using compatibility_date: $CURRENT_DATE"
-          
-          cat > wrangler.toml << EOF
-          name = "${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
-          main = "dist/worker.js"
-          compatibility_date = "$CURRENT_DATE"
-          
-          [env.production]
-          name = "${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
-          account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
-          
-          [env.production.vars]
-          ENVIRONMENT = "production"
-          VERSION = "${{ needs.build.outputs.release_version }}"
-          COMPATIBILITY_DATE = "$CURRENT_DATE"
-          EOF
-          
-          echo "Generated wrangler.toml:"
-          cat wrangler.toml
-
-      - name: Deploy to Cloudflare Workers
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          echo "Deploying to Cloudflare Worker: ${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
-          
-          # 验证wrangler配置
-          wrangler --version
-          
-          # 检查文件是否存在
-          ls -la dist/
-          ls -la wrangler.toml
-          
-          # 部署到Cloudflare
-          wrangler deploy --env production --config wrangler.toml
-          
-          # 获取部署后的URL
-          WORKER_URL=$(wrangler deployments list --name=${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }} --format json | jq -r '.[0].url' || echo "https://${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}.workers.dev")
-          echo "Deployed successfully to: $WORKER_URL"
-          echo "worker_url=$WORKER_URL" >> $GITHUB_ENV
-
-      - name: Comment deployment info
-        if: success()
-        run: |
-          worker_name="${{ github.event.inputs.cf_worker_name || secrets.CF_WORKER_NAME || 'bpb-worker-panel' }}"
-          version="${{ needs.build.outputs.release_version }}"
-          url="${worker_url:-"https://${worker_name}.workers.dev"}"
-          
-          echo "🚀 Cloudflare Worker 部署成功！"
-          echo "Worker名称: $worker_name"
-          echo "版本: v$version"
-          echo "访问地址: $url"
-          echo "✅ 部署完成，您的BPB Worker Panel现已上线！"
-          
-          # 将部署信息写入工作流摘要
-          echo "## 🚀 Cloudflare Worker 部署成功" >> $GITHUB_STEP_SUMMARY
-          echo "- **Worker名称**: $worker_name" >> $GITHUB_STEP_SUMMARY
-          echo "- **版本**: v$version" >> $GITHUB_STEP_SUMMARY
-          echo "- **访问地址**: [$url]($url)" >> $GITHUB_STEP_SUMMARY
-          echo "- **部署时间**: $(date)" >> $GITHUB_STEP_SUMMARY
