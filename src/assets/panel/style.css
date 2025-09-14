@@ -119,10 +119,8 @@ h1 {
 
 .form-control div {
     display: flex;
-    flex: 1;
+    flex: 3;
     width: 100%;
-    justify-content: center;
-    align-items: center;
 }
 
 .form-control label {
