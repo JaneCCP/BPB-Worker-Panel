@@ -55,3 +55,48 @@ jobs:
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           promote: ${{ github.ref == 'refs/heads/main' }}
           body: ${{ steps.read_release.outputs.RELEASE_BODY }}
+
+      - name: Generate wrangler.toml
+        run: |
+          # 动态生成当前日期
+          CURRENT_DATE=$(date -u +"%Y-%m-%d")
+          
+          # 创建基础wrangler.toml
+          cat > wrangler.toml << EOF
+          name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+          main = "dist/worker.js"
+          compatibility_date = "$CURRENT_DATE"
+          account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          
+          [vars]
+          ENVIRONMENT = "production"
+          
+          [[kv_namespaces]]
+          binding = "kv"
+          id = "${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}"
+          EOF
+          
+          # 如果提供了路由URL，添加路由配置
+          if [ -n "${{ secrets.CLOUDFLARE_ROUTE_URL }}" ]; then
+            cat >> wrangler.toml << EOF
+          
+          [env.production]
+          name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+          routes = [
+            { pattern = "${{ secrets.CLOUDFLARE_ROUTE_URL }}", custom_domain = true }
+          ]
+          EOF
+          else
+            cat >> wrangler.toml << EOF
+          
+          [env.production]
+          name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+          EOF
+          fi
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env production
