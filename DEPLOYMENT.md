@@ -40,6 +40,16 @@
 确保所有Secrets变量都正确引用：
 - 使用 `${{ secrets.VARIABLE_NAME }}` 而不是 `$VARIABLE_NAME`
 - 所有必需的Secrets都已配置
+- heredoc语法中的EOF标记不能缩进，必须顶格写
+
+#### 2. heredoc语法错误
+如果遇到类似错误：
+```
+✘ [ERROR] Invalid character, expected "="
+```
+这是因为heredoc的EOF标记被缩进了。确保：
+- `<< EOF` 和 `EOF` 都顶格写
+- heredoc内容保持一致的缩进
 
 #### 2. KV绑定问题
 如果KV未绑定，检查wrangler.toml结构：
