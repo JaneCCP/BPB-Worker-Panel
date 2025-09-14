@@ -72,7 +72,7 @@ export async function updateDataset(request, env) {
         outProxy: populateField('outProxy', ''),
         outProxyParams: populateField('outProxy', {}, field => extractChainProxyParams(field)),
         cleanIPs: populateField('cleanIPs', []),
-        VLTRenableIPv6: populateField('VLTRenableIPv6', true),
+        VLTRenableIPv6: populateField('VLTRenableIPv6', false),
         customCdnAddrs: populateField('customCdnAddrs', []),
         customCdnHost: populateField('customCdnHost', ''),
         customCdnSni: populateField('customCdnSni', ''),
