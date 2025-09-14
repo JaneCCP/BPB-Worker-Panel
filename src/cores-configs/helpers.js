@@ -40,6 +40,10 @@ export async function getConfigAddresses(isFragment) {
     const settings = globalThis.settings;
     const resolved = await resolveDNS(httpConfig.hostName, !settings.VLTRenableIPv6);
     const addrs = [
+        httpConfig.hostName,
+        'www.speedtest.net',
+        ...resolved.ipv4,
+        ...resolved.ipv6.map((ip) => `[${ip}]`),        
         ...settings.cleanIPs
     ];
     
