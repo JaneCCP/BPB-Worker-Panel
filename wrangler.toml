@@ -17,3 +17,6 @@ zone_id = "__ZONE_ID__"
 [[env.production.kv_namespaces]]
 binding = "kv"
 id = "__KV_ID__"
+
+[observability.logs]
+enabled = true
