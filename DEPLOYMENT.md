@@ -26,33 +26,23 @@
 
 ⚠️ **重要**：必须是类似 `1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p` 的32位ID，不是"test"这个名称！
 
-### 验证KV绑定
-部署后可在GitHub Actions日志中查看生成的wrangler.toml文件，确认KV绑定配置是否正确。
+### 验证部署成功
 
-1. 部署完成后，登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. 进入 Workers & Pages → 你的Worker
-3. 查看"设置"选项卡中的"KV命名空间绑定"
-4. 应该能看到 `kv` 绑定到指定的命名空间
+1. 检查GitHub Actions日志，确保没有错误
+2. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com)
+3. 进入 Workers & Pages → 你的Worker
+4. 查看"设置"选项卡中的"KV命名空间绑定"
+5. 应该能看到 `kv` 绑定到指定的命名空间
 
-### 常见部署问题及解决
+### 常见问题解决
 
 #### 1. wrangler.toml配置错误
-确保wrangler.toml文件格式正确，特别是：
-- `account_id` 和 `id` 使用正确的Secrets引用格式
-- KV命名空间配置在正确的环境作用域内
+确保所有Secrets变量都正确引用：
+- 使用 `${{ secrets.VARIABLE_NAME }}` 而不是 `$VARIABLE_NAME`
+- 所有必需的Secrets都已配置
 
-#### 2. 部署失败
-如果wrangler-action失败：
-1. 检查GitHub Actions日志中的详细错误信息
-2. 确认所有必需的Secrets都已正确配置
-3. 查看`Debug wrangler.toml`步骤输出的配置文件内容
-
-#### 3. KV绑定问题解决
-如果部署后发现KV未绑定：
-- `kv_namespaces` 必须在 `env.production` 作用域内定义
-- 使用 `[[env.production.kv_namespaces]]` 而不是顶层的 `[[kv_namespaces]]`
-
-正确配置示例：
+#### 2. KV绑定问题
+如果KV未绑定，检查wrangler.toml结构：
 ```toml
 [env.production]
 name = "your-worker"
@@ -62,12 +52,18 @@ binding = "kv"
 id = "your-kv-namespace-id"
 ```
 
+#### 3. 部署失败
+如果部署步骤失败：
+1. 检查GitHub Secrets是否全部配置
+2. 验证API Token权限
+3. 查看GitHub Actions日志中的详细错误信息
+4. 确保Cloudflare账户ID正确
+
 ### 调试步骤
-1. 检查GitHub Actions日志中的 `wrangler.toml` 内容是否正确
-2. 确认KV命名空间ID是否为32位字符串
-3. 验证Cloudflare账户是否有权限访问该KV命名空间
-4. 检查Secrets配置是否完整（4个必需Secrets）
-5. 如果仍有问题，请重新触发部署流程
+1. 在GitHub Actions日志中查看"Debug wrangler.toml"步骤的输出
+2. 确认所有Secrets值都正确显示（除敏感信息外）
+3. 检查wrangler.toml文件内容是否完整
+4. 验证Cloudflare账户权限和KV命名空间存在
 
 ### 可选Secrets
 
