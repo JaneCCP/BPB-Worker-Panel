@@ -369,7 +369,7 @@ async function buildClashConfig(selectorTags, urlTestTags, secondUrlTestTags, is
     config['rule-providers'] = ruleProviders;
 
     const selector = {
-        "name": "✅ 选择器",
+        "name": "✅ 全局选择",
         "type": "select",
         "proxies": selectorTags
     };
