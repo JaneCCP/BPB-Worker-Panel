@@ -5,12 +5,6 @@ permissions:
 
 on:
   workflow_dispatch:
-    inputs:
-      worker_name:
-        description: 'Worker名称 (可选)'
-        required: false
-        type: string
-        default: ''
 
 jobs:
   build:
@@ -62,58 +56,23 @@ jobs:
           promote: ${{ github.ref == 'refs/heads/main' }}
           body: ${{ steps.read_release.outputs.RELEASE_BODY }}
 
-      - name: Generate wrangler.toml
-        run: |
-          # 动态生成当前日期
-          CURRENT_DATE=$(date -u +"%Y-%m-%d")
-          
-          # 确定worker名称：优先使用表单输入，其次使用Secrets
-          if [ -n "${{ github.event.inputs.worker_name }}" ]; then
-            WORKER_NAME="${{ github.event.inputs.worker_name }}"
-          else
-            WORKER_NAME="${{ secrets.CLOUDFLARE_WORKER_NAME }}"
-          fi
-          
-          echo "使用Worker名称: $WORKER_NAME"
-          echo "KV命名空间ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}"
-          
-          # 创建wrangler.toml
-cat > wrangler.toml << 'WRANGLER_EOF'
-name = "$WORKER_NAME"
-main = "dist/worker.js"
-compatibility_date = "$CURRENT_DATE"
-account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
-
-[env.production]
-name = "$WORKER_NAME"
-
-[env.production.vars]
-ENVIRONMENT = "production"
-
-[[env.production.kv_namespaces]]
-binding = "kv"
-id = "${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}"
-WRANGLER_EOF
-
-# 如果提供了路由URL，添加路由配置
-if [ -n "${{ secrets.CLOUDFLARE_ROUTE_URL }}" ]; then
-cat >> wrangler.toml << 'ROUTES_EOF'
-
-[[env.production.routes]]
-pattern = "${{ secrets.CLOUDFLARE_ROUTE_URL }}"
-custom_domain = true
-ROUTES_EOF
-fi
-          
-      - name: Debug wrangler.toml
-        run: |
-          echo "=== Generated wrangler.toml ==="
-          cat wrangler.toml
-          echo "=============================="
-
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env production
+          command: deploy dist/worker.js --name ${{ secrets.CLOUDFLARE_WORKER_NAME }}
+          preCommands: |
+            cat > wrangler.toml << EOF
+            name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
+            main = "worker.js"
+            compatibility_date = "2024-01-01"
+            compatibility_flags = ["nodejs_compat"]
+            
+            [[kv_namespaces]]
+            binding = "kv"
+            id = "${{ secrets.CLOUDFLARE_KV_ID }}"
+            
+            [vars]
+            ENVIRONMENT = "production"
+            EOF
