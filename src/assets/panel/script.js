@@ -183,7 +183,7 @@ async function fetchIPInfo() {
             throw new Error(`Fetch Cloudflare targets IP failed with status ${response.status} at ${response.url} - ${errorMessage}`);
         }
 
-        const ip = await response.text();
+        const ip = (await response.text()).trim();
         const { country, countryCode, city, isp } = await getIpDetails(ip);
         updateUI(ip, country, countryCode, city, isp, true);
         refreshIcon.classList.remove('fa-spin');
