@@ -75,39 +75,41 @@ jobs:
           fi
           
           echo "使用Worker名称: $WORKER_NAME"
+          echo "KV命名空间ID: ${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}"
           
-          # 创建基础wrangler.toml
-          cat > wrangler.toml << EOF
-          name = "$WORKER_NAME"
-          main = "dist/worker.js"
-          compatibility_date = "$CURRENT_DATE"
-          account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          # 创建wrangler.toml
+            cat > wrangler.toml << EOF
+            name = "$WORKER_NAME"
+            main = "dist/worker.js"
+            compatibility_date = "$CURRENT_DATE"
+            account_id = "$CLOUDFLARE_ACCOUNT_ID"
+
+            [env.production]
+            name = "$WORKER_NAME"
+
+            [env.production.vars]
+            ENVIRONMENT = "production"
+
+            [[env.production.kv_namespaces]]
+            binding = "kv"
+            id = "$CLOUDFLARE_KV_NAMESPACE_ID"
+            EOF
+
+            # 如果提供了路由URL，添加路由配置
+            if [ -n "$CLOUDFLARE_ROUTE_URL" ]; then
+              cat >> wrangler.toml << EOF
+
+            [[env.production.routes]]
+            pattern = "$CLOUDFLARE_ROUTE_URL"
+            custom_domain = true
+            EOF
+            fi
           
-          [vars]
-          ENVIRONMENT = "production"
-          
-          [[kv_namespaces]]
-          binding = "kv"
-          id = "${{ secrets.CLOUDFLARE_KV_NAMESPACE_ID }}"
-          EOF
-          
-          # 如果提供了路由URL，添加路由配置
-          if [ -n "${{ secrets.CLOUDFLARE_ROUTE_URL }}" ]; then
-            cat >> wrangler.toml << EOF
-          
-          [env.production]
-          name = "$WORKER_NAME"
-          routes = [
-            { pattern = "${{ secrets.CLOUDFLARE_ROUTE_URL }}", custom_domain = true }
-          ]
-          EOF
-          else
-            cat >> wrangler.toml << EOF
-          
-          [env.production]
-          name = "$WORKER_NAME"
-          EOF
-          fi
+      - name: Debug wrangler.toml
+        run: |
+          echo "=== Generated wrangler.toml ==="
+          cat wrangler.toml
+          echo "=============================="
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
