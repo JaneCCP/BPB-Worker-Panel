@@ -1,4 +1,4 @@
-name: Build, Release and Deploy
+name: Build and Release
 
 permissions:
   contents: write
@@ -8,20 +8,16 @@ on:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    outputs:
-      release_version: ${{ steps.get_version.outputs.RELEASE_VERSION }}
-      release_body: ${{ steps.read_release.outputs.RELEASE_BODY }}
+
     steps:
-      - name: Check out code
+      - name: Check out the code
         uses: actions/checkout@v4
 
       - name: Get release version
         id: get_version
-        run: |
-          VERSION=$(jq -r .version package.json)
-          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_OUTPUT
+        run: echo "RELEASE_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
 
       - name: Check release version
         run: echo "Release version is $RELEASE_VERSION"
@@ -41,68 +37,74 @@ jobs:
         id: read_release
         shell: bash
         run: |
-          r=$(cat RELEASE.md)
-          r="${r//'%'/'%25'}"
-          r="${r//$'\n'/'%0A'}"
-          r="${r//$'\r'/'%0D'}"
-          echo "RELEASE_BODY=$r" >> $GITHUB_OUTPUT
+          r=$(cat RELEASE.md)         
+          r="${r//'%'/'%25'}"                               
+          r="${r//$'\n'/'%0A'}"                             
+          r="${r//$'\r'/'%0D'}"                             
+          echo "RELEASE_BODY=$r" >> $GITHUB_OUTPUT          
+
+      - name: Upload Release Assets
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          tag: v${{ env.RELEASE_VERSION }}
+          release_name: Release v${{ env.RELEASE_VERSION }}
+          overwrite: true
+          file_glob: true
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          promote: ${{ github.ref == 'refs/heads/main' }}
+          body: ${{ steps.read_release.outputs.RELEASE_BODY }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: dist/
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifacts
-          path: dist/
-
-      - name: Create GitHub Release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/*
-          tag: v${{ needs.build.outputs.release_version }}
-          release_name: Release v${{ needs.build.outputs.release_version }}
-          overwrite: true
-          file_glob: true
-          prerelease: ${{ github.ref != 'refs/heads/main' }}
-          promote: ${{ github.ref == 'refs/heads/main' }}
-          body: ${{ needs.build.outputs.release_body }}
+          retention-days: 1
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
     steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts
           path: dist/
 
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy dist/worker.js --name ${{ secrets.CLOUDFLARE_WORKER_NAME }}
-          preCommands: |
-            cat > wrangler.toml <<EOF
-name = "${{ secrets.CLOUDFLARE_WORKER_NAME }}"
-main = "worker.js"
-compatibility_date = "2024-01-01"
-compatibility_flags = ["nodejs_compat"]
+          node-version: "latest"
 
-[[kv_namespaces]]
-binding = "kv"
-id = "${{ secrets.CLOUDFLARE_KV_ID }}"
+      - name: Install Wrangler
+        run: npm install -g wrangler
 
-[vars]
-ENVIRONMENT = "production"
-EOF
+      - name: Update wrangler.toml with secrets
+        run: |
+          node -e "
+            const fs = require('fs');
+            let content = fs.readFileSync('wrangler.toml', 'utf8');
+            content = content.replace(/__WORKER_NAME__/g, process.env.WORKER_NAME);
+            content = content.replace(/__ACCOUNT_ID__/g, process.env.ACCOUNT_ID);
+            content = content.replace(/__ZONE_ID__/g, process.env.ZONE_ID);
+            content = content.replace(/__KV_ID__/g, process.env.KV_ID);
+            fs.writeFileSync('wrangler.toml', content);
+          "
+        env:
+          WORKER_NAME: ${{ secrets.CLOUDFLARE_WORKER_NAME }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
+
+      - name: Deploy to Cloudflare Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          wrangler deploy --env production
