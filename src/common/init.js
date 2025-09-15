@@ -11,8 +11,8 @@ export function init(request, env) {
         userID: UUID,
         TrPass: TR_PASS,
         pathName: pathname,
-        fallbackDomain: FALLBACK || 'speed.cloudflare.com',
-        dohURL: DOH_URL || 'https://cloudflare-dns.com/dns-query'
+        fallbackDomain: FALLBACK || 'www.baidu.com',
+        dohURL: DOH_URL || 'https://dns.google/dns-query'
     })
 }
 

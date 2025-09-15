@@ -641,8 +641,8 @@ async function buildXrayBestFragmentConfig(chainProxy, outbound) {
 }
 
 async function buildXrayWorkerLessConfig() {
-    const cfDnsConfig = await buildXrayConfig(`💦 ${atob('QlBC')} F - 无Worker - 1 ⭐`, false, false, false, false, true, true, [], false, "cloudflare-dns.com", ["cloudflare.com"]);
-    const googleDnsConfig = await buildXrayConfig(`💦 ${atob('QlBC')} F - 无Worker - 2 ⭐`, false, false, false, false, true, true, [], false, "dns.google", ["8.8.8.8", "8.8.4.4"]);
+    const cfDnsConfig = await buildXrayConfig(`💦 ${atob('QlBC')} F - 无Worker本地中转 - 1 ⭐`, false, false, false, false, true, true, [], false, "cloudflare-dns.com", ["cloudflare.com"]);
+    const googleDnsConfig = await buildXrayConfig(`💦 ${atob('QlBC')} F - 无Worker本地中转 - 2 ⭐`, false, false, false, false, true, true, [], false, "dns.google", ["8.8.8.8", "8.8.4.4"]);
     return [cfDnsConfig, googleDnsConfig];
 }
 
@@ -813,7 +813,7 @@ const xrayConfigTemp = {
             port: 10853,
             protocol: "dokodemo-door",
             settings: {
-                address: "1.1.1.1",
+                address: "8.8.8.8",
                 network: "tcp,udp",
                 port: 53
             },

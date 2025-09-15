@@ -225,7 +225,7 @@ async function getWarpConfigs(request, env) {
                 `[Interface]
                 PrivateKey = ${privateKey}
                 Address = 172.16.0.2/32, ${warpIPv6}
-                DNS = 1.1.1.1, 1.0.0.1
+                DNS = 8.8.8.8, 8.8.4.4
                 MTU = 1280
                 ${amneziaNoise}
                 [Peer]
