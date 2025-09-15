@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Release & Deploy
 
 permissions:
   contents: write
@@ -59,3 +59,58 @@ jobs:
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           promote: ${{ github.ref == 'refs/heads/main' }}
           body: ${{ steps.read_release.outputs.RELEASE_BODY }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "latest"
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Update wrangler.toml with secrets
+        run: |
+          node -e "
+            const fs = require('fs');
+            let content = fs.readFileSync('wrangler.toml', 'utf8');
+            content = content.replace(/__WORKER_NAME__/g, process.env.WORKER_NAME);
+            content = content.replace(/__ACCOUNT_ID__/g, process.env.ACCOUNT_ID);
+            content = content.replace(/__ZONE_ID__/g, process.env.ZONE_ID);
+            content = content.replace(/__KV_ID__/g, process.env.KV_ID);
+            fs.writeFileSync('wrangler.toml', content);
+          "
+        env:
+          WORKER_NAME: ${{ secrets.CLOUDFLARE_WORKER_NAME }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
+
+      - name: Deploy to Cloudflare Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          wrangler deploy --env production
