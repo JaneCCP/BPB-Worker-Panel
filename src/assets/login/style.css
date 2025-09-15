@@ -79,9 +79,9 @@ h2 {
 
 .form-control {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
 }
 
 label {
@@ -91,10 +91,8 @@ label {
 
 .password-wrapper {
     display: flex;
-    width: 100%;
-    max-width: 300px;
+    width: 70%;
     position: relative;
-    align-self: center;
 }
 
 .password-wrapper input[type=password],
