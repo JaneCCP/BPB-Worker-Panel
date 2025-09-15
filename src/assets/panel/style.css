@@ -278,11 +278,25 @@ button.reverse {
 
 .form-control.apply {
     flex-wrap: wrap;
-    flex-direction: row;
+    flex-direction: column;
     padding: var(--container-padding) 0;
-    gap: 8px;
+    gap: 12px;
     justify-content: center;
+    align-items: center;
     flex: unset;
+}
+
+.apply-settings-row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.panel-settings-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    width: 100%;
 }
 
 button.apply-settings {

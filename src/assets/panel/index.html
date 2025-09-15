@@ -517,21 +517,25 @@
                 </div>
             </details>
             <div id="apply" class="form-control apply">
-                <button type="submit" id="applyButton" class="button disabled apply-settings" form="configForm">
-                    应用设置 💥
-                </button>
-                <button type="button" class="panel-settings" title="重置面板设置为默认值"
-                    onclick="resetSettings()">
-                    <i id="refresh-btn" class="fa fa-refresh fa-2x" aria-hidden="true"></i>
-                </button>
-                <button type="button" class="panel-settings" title="导出面板设置" onclick="exportSettings()">
-                    <i class="fa fa-cloud-download fa-2x" aria-hidden="true"></i>
-                </button>
-                <button type="button" class="panel-settings" title="导入面板设置" onclick="importSettings()">
-                    <i class="fa fa-cloud-upload fa-2x" aria-hidden="true"></i>
-                    <input type="file" id="fileInput" accept=".dat" style="display: none;"
-                        onchange="uploadSettings(event)" />
-                </button>
+                <div class="apply-settings-row">
+                    <button type="submit" id="applyButton" class="button disabled apply-settings" form="configForm">
+                        应用设置 💥
+                    </button>
+                </div>
+                <div class="panel-settings-row">
+                    <button type="button" class="panel-settings" title="重置面板设置为默认值"
+                        onclick="resetSettings()">
+                        <i id="refresh-btn" class="fa fa-refresh fa-2x" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="panel-settings" title="导出面板设置" onclick="exportSettings()">
+                        <i class="fa fa-cloud-download fa-2x" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="panel-settings" title="导入面板设置" onclick="importSettings()">
+                        <i class="fa fa-cloud-upload fa-2x" aria-hidden="true"></i>
+                        <input type="file" id="fileInput" accept=".dat" style="display: none;"
+                            onchange="uploadSettings(event)" />
+                    </button>
+                </div>
             </div>
         </form>
     </div>
