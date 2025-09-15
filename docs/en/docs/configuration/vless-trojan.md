@@ -16,7 +16,7 @@ https://8.8.8.8/dns-query
 !!! tip
     From version 2.5.5 onward, you can use some well known DoH or DoT servers:
     ```
-    https://dns.google/resolve
+    https://dns.google/dns-query
     ```
     ```
     https://dns.adguard-dns.com/dns-query
