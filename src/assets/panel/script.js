@@ -145,7 +145,7 @@ function darkModeToggle() {
 
 async function getIpDetails(ip) {
     try {
-        const response = await fetch('/panel/my-ip', { method: 'POST', body: ip });
+        const response = await fetch('/panel/my-ip', { method: 'POST', body: ip.trim() });
         const data = await response.json();
         const { success, status, message, body } = data;
         if (!success) throw new Error(`status ${status} - ${message}`);
@@ -175,7 +175,7 @@ async function fetchIPInfo() {
         updateUI(ip, country, countryCode, city, isp);
         refreshIcon.classList.remove('fa-spin');
     } catch (error) {
-        console.error("Fetching IP error:", error.message || error)
+        console.error("获取IP错误:", error.message || error)
     }
 
     try {
@@ -190,7 +190,7 @@ async function fetchIPInfo() {
         updateUI(ip, country, countryCode, city, isp, true);
         refreshIcon.classList.remove('fa-spin');
     } catch (error) {
-        console.error("Fetching IP error:", error.message || error)
+        console.error("获取IP错误:", error.message || error)
     }
 }
 
@@ -587,7 +587,7 @@ function validateNAT64Prefixes() {
         .filter(value => value && !ipv6Regex.test(value));
 
     if (invalidValues.length) {
-        alert('⛔ 无效的NAT64前缀。\n👉 请使用[]在新行中输入每个前缀。\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
+        alert('⛔ 无效的NAT64前缀。\n👉 请在新行中使用[]输入每个前缀。\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
         return false;
     }
 
@@ -760,7 +760,7 @@ function resetPassword(event) {
     const confirmPassword = confirmPasswordInput.value;
 
     if (newPassword !== confirmPassword) {
-        passwordError.textContent = "密码不匹配";
+        passwordError.textContent = "⚠️ 两次输入的密码不一致！";
         return false;
     }
 
@@ -942,11 +942,11 @@ function generateUdpNoise(event) {
 
 function deleteUdpNoise(event) {
     if (globalThis.xrayNoiseCount === 1) {
-        alert('⛔ 您不能删除所有噪声！');
+        alert('⛔ 至少保留一个噪声！');
         return;
     }
 
-    const confirmReset = confirm('⚠️ 这将删除噪声。\n\n❓ 您确定吗？');
+    const confirmReset = confirm('⚠️ 确认删除此噪声？\n\n❓ 此操作无法撤销！');
     if (!confirmReset) return;
     event.target.closest(".inner-container").remove();
     enableApplyButton();

@@ -182,7 +182,7 @@ export async function fallback(request) {
 }
 
 async function getMyIP(request) {
-    const ip = await request.text();
+    const ip = (await request.text()).trim();
     try {
         const response = await fetch(`http://ip-api.com/json/${ip}?nocache=${Date.now()}&lang=zh-CN`);
         const geoLocation = await response.json();
