@@ -22,7 +22,7 @@ export async function handleTCPOutBound(
         });
 
         remoteSocket.value = tcpSocket;
-        log(`connected to ${address}:${port}`);
+        log(`已连接到 ${address}:${port}`);
         const writer = tcpSocket.writable.getWriter();
         await writer.write(rawClientData); // first write, nomal is tls client hello
         writer.releaseLock();
@@ -36,7 +36,7 @@ export async function handleTCPOutBound(
         const parseIPs = (value) => value ? value.split(',').map(val => val.trim()).filter(Boolean) : undefined;
 
         if (proxyMode === 'proxyip') {
-            log(`direct connection failed, trying to use Proxy IP for ${addressRemote}`);
+            log(`直连失败，尝试为 ${addressRemote} 使用代理IP`);
             try {
                 const proxyIPs = parseIPs(wsConfig.envProxyIPs) ||  wsConfig.defaultProxyIPs;
                 const ips = panelIPs.length ? panelIPs : proxyIPs;
@@ -44,12 +44,12 @@ export async function handleTCPOutBound(
                 const { host, port } = parseHostPort(proxyIP, true);
                 tcpSocket = await connectAndWrite(host || addressRemote, port || portRemote);
             } catch (error) {
-                console.error('Proxy IP connection failed:', error);
-                webSocket.close(1011, 'Proxy IP connection failed: ' + error.message);
+                console.error('代理IP连接失败:', error);
+                webSocket.close(1011, '代理IP连接失败: ' + error.message);
             }
 
         } else if (proxyMode === 'prefix') {
-            log(`direct connection failed, trying to generate dynamic prefix for ${addressRemote}`);
+            log(`直连失败，尝试为 ${addressRemote} 生成动态前缀`);
             try {
                 const prefixes = parseIPs(wsConfig.envPrefixes) || wsConfig.defaultPrefixes;
                 const ips = panelIPs.length ? panelIPs : prefixes;
@@ -57,13 +57,13 @@ export async function handleTCPOutBound(
                 const dynamicProxyIP = await getDynamicProxyIP(addressRemote, prefix);
                 tcpSocket = await connectAndWrite(dynamicProxyIP, portRemote);
             } catch (error) {
-                console.error('Prefix connection failed:', error);
-                webSocket.close(1011, 'Prefix connection failed: ' + error.message);
+                console.error('前缀连接失败:', error);
+                webSocket.close(1011, '前缀连接失败: ' + error.message);
             }
         }
 
         tcpSocket.closed.catch(error => {
-            console.log('retry tcpSocket closed error', error);
+            console.log('重试 tcpSocket 关闭错误', error);
         }).finally(() => {
             safeCloseWebSocket(webSocket);
         });
@@ -75,8 +75,8 @@ export async function handleTCPOutBound(
         const tcpSocket = await connectAndWrite(addressRemote, portRemote);
         remoteSocketToWS(tcpSocket, webSocket, VLResponseHeader, retry, log);
     } catch (error) {
-        console.error('Connection failed:', err);
-        webSocket.close(1011, 'Connection failed');
+        console.error('连接失败:', err);
+        webSocket.close(1011, '连接失败');
     }
 }
 
@@ -92,7 +92,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
                     hasIncomingData = true;
                     // remoteChunkCount++;
                     if (webSocket.readyState !== WS_READY_STATE_OPEN) {
-                        controller.error("webSocket.readyState is not open, maybe close");
+                        controller.error("webSocket.readyState 未打开，可能已关闭");
                     }
                     if (VLHeader) {
                         webSocket.send(await new Blob([VLHeader, chunk]).arrayBuffer());
@@ -107,16 +107,16 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
                     }
                 },
                 close() {
-                    log(`remoteConnection!.readable is close with hasIncomingData is ${hasIncomingData}`);
+                    log(`远程连接!.readable 已关闭，hasIncomingData 为 ${hasIncomingData}`);
                     // safeCloseWebSocket(webSocket); // no need server close websocket frist for some case will casue HTTP ERR_CONTENT_LENGTH_MISMATCH issue, client will send close event anyway.
                 },
                 abort(reason) {
-                    console.error(`remoteConnection!.readable abort`, reason);
+                    console.error(`远程连接!.readable 中止`, reason);
                 },
             })
         )
         .catch((error) => {
-            console.error(`VLRemoteSocketToWS has exception `, error.stack || error);
+            console.error(`VLRemoteSocketToWS 发生异常 `, error.stack || error);
             safeCloseWebSocket(webSocket);
         });
 
@@ -124,7 +124,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
     // 1. Socket.closed will have error
     // 2. Socket.readable will be close without any data coming
     if (hasIncomingData === false && retry) {
-        log(`retry`);
+        log(`重试`);
         retry();
     }
 }
@@ -154,7 +154,7 @@ export function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, lo
                 controller.close();
             });
             webSocketServer.addEventListener("error", (err) => {
-                log("webSocketServer has error");
+                log("webSocketServer 发生错误");
                 controller.error(err);
             });
             // for ws 0rtt
@@ -176,7 +176,7 @@ export function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, lo
             if (readableStreamCancel) {
                 return;
             }
-            log(`ReadableStream was canceled, due to ${reason}`);
+            log(`ReadableStream 已取消，原因: ${reason}`);
             readableStreamCancel = true;
             safeCloseWebSocket(webSocketServer);
         },
@@ -206,7 +206,7 @@ export function safeCloseWebSocket(socket) {
             socket.close();
         }
     } catch (error) {
-        console.error('safeCloseWebSocket error', error);
+        console.error('safeCloseWebSocket 错误', error);
     }
 }
 
@@ -217,7 +217,7 @@ async function getDynamicProxyIP(address, prefix) {
         if (ipv4.length) {
             finalAddress = ipv4[0];
         } else {
-            throw new Error('Unable to find IPv4 in DNS records');
+            throw new Error('无法在DNS记录中找到IPv4');
         }
     }
 
@@ -227,13 +227,13 @@ async function getDynamicProxyIP(address, prefix) {
 function convertToNAT64IPv6(ipv4Address, prefix) {
     const parts = ipv4Address.split('.');
     if (parts.length !== 4) {
-        throw new Error('Invalid IPv4 address');
+        throw new Error('无效的IPv4地址');
     }
 
     const hex = parts.map(part => {
         const num = parseInt(part, 10);
         if (num < 0 || num > 255) {
-            throw new Error('Invalid IPv4 address');
+            throw new Error('无效的IPv4地址');
         }
         return num.toString(16).padStart(2, '0');
     });

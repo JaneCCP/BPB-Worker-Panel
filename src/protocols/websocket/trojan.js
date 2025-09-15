@@ -60,15 +60,15 @@ export async function TrOverWSHandler(request) {
                     );
                 },
                 close() {
-                    log(`readableWebSocketStream is closed`);
+                    log(`readableWebSocketStream 已关闭`);
                 },
                 abort(reason) {
-                    log(`readableWebSocketStream is aborted`, JSON.stringify(reason));
+                    log(`readableWebSocketStream 已中止`, JSON.stringify(reason));
                 },
             })
         )
         .catch((err) => {
-            log("readableWebSocketStream pipeTo error", err);
+            log("readableWebSocketStream pipeTo 错误", err);
         });
 
     return new Response(null, {
@@ -82,7 +82,7 @@ function parseTRHeader(buffer) {
     if (buffer.byteLength < 56) {
         return {
             hasError: true,
-            message: "invalid data",
+            message: "无效数据",
         };
     }
 
@@ -90,7 +90,7 @@ function parseTRHeader(buffer) {
     if (new Uint8Array(buffer.slice(56, 57))[0] !== 0x0d || new Uint8Array(buffer.slice(57, 58))[0] !== 0x0a) {
         return {
             hasError: true,
-            message: "invalid header format (missing CR LF)",
+            message: "无效的头部格式 (缺少 CR LF)",
         };
     }
 
@@ -98,7 +98,7 @@ function parseTRHeader(buffer) {
     if (password !== sha224(globalConfig.TrPass)) {
         return {
             hasError: true,
-            message: "invalid password",
+            message: "无效密码",
         };
     }
 
@@ -106,7 +106,7 @@ function parseTRHeader(buffer) {
     if (socks5DataBuffer.byteLength < 6) {
         return {
             hasError: true,
-            message: "invalid SOCKS5 request data",
+            message: "无效的 SOCKS5 请求数据",
         };
     }
 
@@ -115,7 +115,7 @@ function parseTRHeader(buffer) {
     if (cmd !== 1) {
         return {
             hasError: true,
-            message: "unsupported command, only TCP (CONNECT) is allowed",
+            message: "不支持的命令，仅允许 TCP (CONNECT)",
         };
     }
 
@@ -149,14 +149,14 @@ function parseTRHeader(buffer) {
         default:
             return {
                 hasError: true,
-                message: `invalid addressType is ${atype}`,
+                message: `无效的地址类型: ${atype}`,
             };
     }
 
     if (!address) {
         return {
             hasError: true,
-            message: `address is empty, addressType is ${atype}`,
+            message: `地址为空，地址类型为: ${atype}`,
         };
     }
 

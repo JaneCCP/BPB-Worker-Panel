@@ -19,7 +19,7 @@ export async function resolveDNS(domain, onlyIPv4 = false) {
         const ipv6 = onlyIPv4 ? [] : await fetchDNSRecords(dohURLs.ipv6, 28);
         return { ipv4, ipv6 };
     } catch (error) {
-        throw new Error(`Error resolving DNS for ${domain}: ${error.message}`);
+        throw new Error(`解析 ${domain} 的 DNS 时出错: ${error.message}`);
     }
 }
 
@@ -33,7 +33,7 @@ async function fetchDNSRecords(url, recordType) {
             .filter(record => record.type === recordType)
             .map(record => record.data);
     } catch (error) {
-        throw new Error(`Failed to fetch DNS records from ${url}: ${error.message}`);
+        throw new Error(`从 ${url} 获取 DNS 记录失败: ${error.message}`);
     }
 }
 
@@ -66,8 +66,8 @@ export function generateRemark(index, port, address, cleanIPs, protocol, configT
     const type = configType ? ` ${configType}` : '';
 
     cleanIPs.includes(address)
-        ? addressType = 'Clean IP'
-        : addressType = isDomain(address) ? 'Domain' : isIPv4(address) ? 'IPv4' : isIPv6(address) ? 'IPv6' : '';
+        ? addressType = '干净 IP'
+        : addressType = isDomain(address) ? '域名' : isIPv4(address) ? 'IPv4' : isIPv6(address) ? 'IPv6' : '';
 
     return `💦 ${index} - ${protocol}${type} - ${addressType} : ${port}`;
 }

@@ -22,7 +22,7 @@ export async function getDataset(request, env) {
         return { settings, warpConfigs }
     } catch (error) {
         console.log(error);
-        throw new Error(`An error occurred while getting KV - ${error.message}`);
+        throw new Error(`获取 KV 时发生错误 - ${error.message}`);
     }
 }
 
@@ -35,7 +35,7 @@ export async function updateDataset(request, env) {
             currentSettings = await env.kv.get("proxySettings", { type: 'json' });
         } catch (error) {
             console.log(error);
-            throw new Error(`An error occurred while getting current KV settings - ${error}`);
+            throw new Error(`获取当前 KV 设置时发生错误 - ${error}`);
         }
     }
 
@@ -141,7 +141,7 @@ export async function updateDataset(request, env) {
         await env.kv.put("proxySettings", JSON.stringify(settings));
     } catch (error) {
         console.log(error);
-        throw new Error(`An error occurred while updating KV - ${error}`);
+        throw new Error(`更新 KV 时发生错误 - ${error}`);
     }
 
     return settings;

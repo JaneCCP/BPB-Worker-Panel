@@ -71,7 +71,7 @@ export async function VlOverWSHandler(request) {
                     return;
                 } else {
                     // controller.error('UDP proxy only enable for DNS which is port 53');
-                    throw new Error("UDP proxy only enable for DNS which is port 53"); // cf seems has bug, controller.error will not end stream
+                    throw new Error("UDP代理仅支持DNS，端口为53"); // cf seems has bug, controller.error will not end stream
                     // return;
                 }
             }
@@ -87,15 +87,15 @@ export async function VlOverWSHandler(request) {
             );
         },
         close() {
-            log(`readableWebSocketStream is close`);
+            log(`readableWebSocketStream 已关闭`);
         },
         abort(reason) {
-            log(`readableWebSocketStream is abort`, JSON.stringify(reason));
+            log(`readableWebSocketStream 已中止`, JSON.stringify(reason));
         },
     })
     )
         .catch((err) => {
-            log("readableWebSocketStream pipeTo error", err);
+            log("readableWebSocketStream pipeTo 错误", err);
         });
 
     return new Response(null, {
@@ -108,7 +108,7 @@ function processVLHeader(VLBuffer, userID) {
     if (VLBuffer.byteLength < 24) {
         return {
             hasError: true,
-            message: "invalid data",
+            message: "无效数据",
         };
     }
     const version = new Uint8Array(VLBuffer.slice(0, 1));
@@ -121,7 +121,7 @@ function processVLHeader(VLBuffer, userID) {
     if (!isValidUser) {
         return {
             hasError: true,
-            message: "invalid user",
+            message: "无效用户",
         };
     }
 
@@ -138,7 +138,7 @@ function processVLHeader(VLBuffer, userID) {
     } else {
         return {
             hasError: true,
-            message: `command ${command} is not support, command 01-tcp,02-udp,03-mux`,
+            message: `不支持命令 ${command}，命令格式: 01-tcp,02-udp,03-mux`,
         };
     }
     const portIndex = 18 + optLength + 1;
@@ -181,13 +181,13 @@ function processVLHeader(VLBuffer, userID) {
         default:
             return {
                 hasError: true,
-                message: `invild  addressType is ${addressType}`,
+                message: `无效的地址类型: ${addressType}`,
             };
     }
     if (!addressValue) {
         return {
             hasError: true,
-            message: `addressValue is empty, addressType is ${addressType}`,
+            message: `地址值为空，地址类型为: ${addressType}`,
         };
     }
 
@@ -236,7 +236,7 @@ function unsafeStringify(arr, offset = 0) {
 function stringify(arr, offset = 0) {
     const uuid = unsafeStringify(arr, offset);
     if (!isValidUUID(uuid)) {
-        throw TypeError("Stringified UUID is invalid");
+        throw TypeError("字符串化的UUID无效");
     }
     return uuid;
 }
@@ -279,7 +279,7 @@ async function handleUDPOutBound(webSocket, VLResponseHeader, log) {
                     // console.log([...new Uint8Array(dnsQueryResult)].map((x) => x.toString(16)));
                     const udpSizeBuffer = new Uint8Array([(udpSize >> 8) & 0xff, udpSize & 0xff]);
                     if (webSocket.readyState === WS_READY_STATE_OPEN) {
-                        log(`doh success and dns message length is ${udpSize}`);
+                        log(`DoH成功，DNS消息长度为 ${udpSize}`);
                         if (isVLHeaderSent) {
                             webSocket.send(await new Blob([udpSizeBuffer, dnsQueryResult]).arrayBuffer());
                         } else {
@@ -291,7 +291,7 @@ async function handleUDPOutBound(webSocket, VLResponseHeader, log) {
             })
         )
         .catch((error) => {
-            log("dns udp has error" + error);
+            log("DNS UDP 发生错误" + error);
         });
 
     const writer = transformStream.writable.getWriter();

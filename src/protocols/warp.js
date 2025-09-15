@@ -24,7 +24,7 @@ export async function fetchWarpConfigs(env) {
             });
             return await response.json();
         } catch (error) {
-            throw new Error("Failed to get warp configs.", error);
+            throw new Error("获取 warp 配置失败。", error);
         }
     };
 

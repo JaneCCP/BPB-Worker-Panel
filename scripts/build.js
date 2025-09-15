@@ -58,7 +58,7 @@ async function processHtmlPages() {
         result[dir] = JSON.stringify(encodedHtml);
     }
 
-    console.log(`${success} Assets bundled successfuly!`);
+    console.log(`${success} 资源打包成功！`);
     return result;
 }
 
@@ -107,7 +107,7 @@ async function buildWorker() {
         }
     });
 
-    console.log(`${success} Worker built successfuly!`);
+    console.log(`${success} Worker构建成功！`);
 
     const minifyCode = async (code) => {
         const minified = await jsMinify(code, {
@@ -121,7 +121,7 @@ async function buildWorker() {
             }
         });
 
-        console.log(`${success} Worker minified successfuly!`);
+        console.log(`${success} Worker压缩成功！`);
         return minified;
     }
 
@@ -146,7 +146,7 @@ async function buildWorker() {
             target: "browser"
         });
 
-        console.log(`${success} Worker obfuscated successfuly!`);
+        console.log(`${success} Worker混淆成功！`);
         finalCode = obfuscationResult.getObfuscatedCode();
     }
 
@@ -163,11 +163,11 @@ async function buildWorker() {
         compression: 'DEFLATE'
     }).then(nodebuffer => writeFileSync('./dist/worker.zip', nodebuffer));
 
-    console.log(`${success} Done!`);
+    console.log(`${success} 完成！`);
 }
 
 buildWorker().catch(err => {
-    console.error(`${failure} Build failed:`, err);
+    console.error(`${failure} 构建失败:`, err);
     process.exit(1);
 });
 

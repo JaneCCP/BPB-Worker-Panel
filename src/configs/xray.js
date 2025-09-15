@@ -605,7 +605,7 @@ async function buildXrayConfig(
 }
 
 async function buildXrayBestPingConfig(totalAddresses, chainProxy, outbounds, isFragment) {
-    const remark = isFragment ? `💦 ${atob('QlBC')} F - Best Ping 💥` : `💦 ${atob('QlBC')} - Best Ping 💥`;
+    const remark = isFragment ? `💦 ${atob('QlBC')} F - 最佳延迟 💥` : `💦 ${atob('QlBC')} - 最佳延迟 💥`;
     const config = await buildXrayConfig(remark, true, chainProxy, true, false, isFragment, false, totalAddresses, null);
     config.outbounds.unshift(...outbounds);
     return config;
@@ -616,7 +616,7 @@ async function buildXrayBestFragmentConfig(chainProxy, outbound) {
         '70-80', '80-90', '90-100', '10-30', '20-40', '30-50',
         '40-60', '50-70', '60-80', '70-90', '80-100', '100-200'];
 
-    const config = await buildXrayConfig(`💦 ${atob('QlBC')} F - Best Fragment 😎`, true, chainProxy, false, false, true, false, [], httpConfig.hostName);
+    const config = await buildXrayConfig(`💦 ${atob('QlBC')} F - 最佳分片 😎`, true, chainProxy, false, false, true, false, [], httpConfig.hostName);
     const bestFragOutbounds = [];
 
     bestFragValues.forEach((fragLength, index) => {
@@ -641,8 +641,8 @@ async function buildXrayBestFragmentConfig(chainProxy, outbound) {
 }
 
 async function buildXrayWorkerLessConfig() {
-    const cfDnsConfig = await buildXrayConfig(`💦 ${atob('QlBC')} F - WorkerLess - 1 ⭐`, false, false, false, false, true, true, [], false, "cloudflare-dns.com", ["cloudflare.com"]);
-    const googleDnsConfig = await buildXrayConfig(`💦 ${atob('QlBC')} F - WorkerLess - 2 ⭐`, false, false, false, false, true, true, [], false, "dns.google", ["8.8.8.8", "8.8.4.4"]);
+    const cfDnsConfig = await buildXrayConfig(`💦 ${atob('QlBC')} F - 无Worker - 1 ⭐`, false, false, false, false, true, true, [], false, "cloudflare-dns.com", ["cloudflare.com"]);
+    const googleDnsConfig = await buildXrayConfig(`💦 ${atob('QlBC')} F - 无Worker - 2 ⭐`, false, false, false, false, true, true, [], false, "dns.google", ["8.8.8.8", "8.8.4.4"]);
     return [cfDnsConfig, googleDnsConfig];
 }
 
@@ -652,7 +652,7 @@ export async function getXrayCustomConfigs(env, isFragment) {
         try {
             chainProxy = buildXrayChainOutbound();
         } catch (error) {
-            console.log('An error occured while parsing chain proxy: ', error);
+            console.log('解析链式代理时发生错误: ', error);
             chainProxy = undefined;
             const proxySettings = await env.kv.get("proxySettings", { type: 'json' });
             await env.kv.put("proxySettings", JSON.stringify({
@@ -769,10 +769,10 @@ export async function getXrayWarpConfigs(request, env, isPro) {
     const totalOutbounds = [...outbounds.chains, ...outbounds.proxies];
     const outboundDomains = settings.warpEndpoints.map(endpoint => endpoint.split(':')[0]).filter(address => isDomain(address));
 
-    const xrayWarpBestPing = await buildXrayConfig(`💦 Warp${proIndicator}- Best Ping 🚀`, true, false, false, true, false, false, outboundDomains, null);
+    const xrayWarpBestPing = await buildXrayConfig(`💦 Warp${proIndicator}- 最佳延迟 🚀`, true, false, false, true, false, false, outboundDomains, null);
     xrayWarpBestPing.outbounds.unshift(...outbounds.proxies);
 
-    const xrayWoWBestPing = await buildXrayConfig(`💦 WoW${proIndicator}- Best Ping 🚀`, true, true, false, true, false, false, outboundDomains, null);
+    const xrayWoWBestPing = await buildXrayConfig(`💦 WoW${proIndicator}- 最佳延迟 🚀`, true, true, false, true, false, false, outboundDomains, null);
     xrayWoWBestPing.outbounds.unshift(...totalOutbounds);
 
     const configs = [...xrayWarpConfigs, ...xrayWoWConfigs, xrayWarpBestPing, xrayWoWBestPing];

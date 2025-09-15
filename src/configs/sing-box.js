@@ -11,7 +11,7 @@ async function buildSingBoxDNS(isWarp) {
         {
             type: isWarp ? "udp" : dnsProtocol,
             server: isWarp ? "1.1.1.1" : settings.dohHost.host,
-            detour: "✅ Selector",
+            detour: "✅ 选择器",
             tag: "dns-remote"
         },
     ];
@@ -184,7 +184,7 @@ function buildSingBoxRoutingRules(isWarp) {
         },
         {
             clash_mode: "Global",
-            outbound: "✅ Selector"
+            outbound: "✅ 选择器"
         },
         {
             action: "sniff"
@@ -291,7 +291,7 @@ function buildSingBoxRoutingRules(isWarp) {
             rewrite_ttl: 60
         },
         // override_android_vpn: true,
-        final: "✅ Selector"
+        final: "✅ 选择器"
     }
 }
 
@@ -514,7 +514,7 @@ async function buildSingBoxConfig(selectorTags, urlTestTags, secondUrlTestTags, 
 
     const urlTest = {
         type: "urltest",
-        tag: isWarp ? `💦 Warp - Best Ping 🚀` : '💦 Best Ping 💥',
+        tag: isWarp ? `💦 Warp - 最佳延迟 🚀` : '💦 最佳延迟 💥',
         outbounds: urlTestTags,
         url: "https://www.gstatic.com/generate_204",
         interrupt_exist_connections: false,
@@ -525,7 +525,7 @@ async function buildSingBoxConfig(selectorTags, urlTestTags, secondUrlTestTags, 
 
     if (isWarp) {
         const secondUrlTest = structuredClone(urlTest);
-        secondUrlTest.tag = `💦 WoW - Best Ping 🚀`;
+        secondUrlTest.tag = `💦 WoW - 最佳延迟 🚀`;
         secondUrlTest.outbounds = secondUrlTestTags;
         config.outbounds.push(secondUrlTest);
     }
@@ -555,7 +555,7 @@ export async function getSingBoxWarpConfig(request, env) {
         endpoints.chains.push(wowOutbound);
     });
 
-    const selectorTags = [`💦 Warp - Best Ping 🚀`, `💦 WoW - Best Ping 🚀`, ...warpTags, ...wowTags];
+    const selectorTags = [`💦 Warp - 最佳延迟 🚀`, `💦 WoW - 最佳延迟 🚀`, ...warpTags, ...wowTags];
     const config = await buildSingBoxConfig(selectorTags, warpTags, wowTags, true, settings.warpEnableIPv6);
     config.endpoints = [...endpoints.chains, ...endpoints.proxies];
 
@@ -576,7 +576,7 @@ export async function getSingBoxCustomConfig(env, isFragment) {
         try {
             chainProxy = buildSingBoxChainOutbound(settings.outProxyParams);
         } catch (error) {
-            console.log('An error occured while parsing chain proxy: ', error);
+            console.log('解析链式代理时发生错误: ', error);
             chainProxy = undefined;
             const proxySettings = await env.kv.get("proxySettings", { type: 'json' });
             await env.kv.put("proxySettings", JSON.stringify({
@@ -656,7 +656,7 @@ export async function getSingBoxCustomConfig(env, isFragment) {
         });
     });
 
-    const selectorTags = ['💦 Best Ping 💥', ...tags];
+    const selectorTags = ['💦 最佳延迟 💥', ...tags];
     const config = await buildSingBoxConfig(selectorTags, tags, null, false, settings.VLTRenableIPv6);
     config.outbounds.push(...outbounds.chains, ...outbounds.proxies);
 
@@ -699,7 +699,7 @@ const singboxConfigTemp = {
     outbounds: [
         {
             type: "selector",
-            tag: "✅ Selector",
+            tag: "✅ 选择器",
             outbounds: [],
             interrupt_exist_connections: false
         },

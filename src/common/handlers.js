@@ -32,7 +32,7 @@ export async function handleWebsocket(request) {
         }
 
     } catch (error) {
-        return new Response('Failed to parse WebSocket path config', { status: 400 });
+        return new Response('解析WebSocket路径配置失败', { status: 400 });
     }
 }
 
@@ -134,29 +134,29 @@ export async function handleSubscriptions(request, env) {
 async function updateSettings(request, env) {
     if (request.method === 'POST') {
         const auth = await Authenticate(request, env);
-        if (!auth) return await respond(false, 401, 'Unauthorized or expired session.');
+        if (!auth) return await respond(false, 401, '未授权或会话已过期');
         const proxySettings = await updateDataset(request, env);
         return await respond(true, 200, null, proxySettings);
     }
 
-    return await respond(false, 405, 'Method not allowed.');
+    return await respond(false, 405, '方法不被允许');
 }
 
 async function resetSettings(request, env) {
     if (request.method === 'POST') {
         const auth = await Authenticate(request, env);
-        if (!auth) return await respond(false, 401, 'Unauthorized or expired session.');
+        if (!auth) return await respond(false, 401, '未授权或会话已过期');
         const proxySettings = await updateDataset(request, env);
         return await respond(true, 200, null, proxySettings);
     }
 
-    return await respond(false, 405, 'Method not allowed!');
+    return await respond(false, 405, '方法不被允许');
 }
 
 async function getSettings(request, env) {
     const isPassSet = await env.kv.get('pwd') ? true : false;
     const auth = await Authenticate(request, env);
-    if (!auth) return await respond(false, 401, 'Unauthorized or expired session.', { isPassSet });
+    if (!auth) return await respond(false, 401, '未授权或会话已过期', { isPassSet });
     const dataset = await getDataset(request, env);
     const data = {
         proxySettings: dataset.settings,
@@ -184,19 +184,19 @@ export async function fallback(request) {
 async function getMyIP(request) {
     const ip = await request.text();
     try {
-        const response = await fetch(`http://ip-api.com/json/${ip}?nocache=${Date.now()}`);
+        const response = await fetch(`http://ip-api.com/json/${ip}?nocache=${Date.now()}&lang=zh-CN`);
         const geoLocation = await response.json();
         return await respond(true, 200, null, geoLocation);
     } catch (error) {
-        console.error('Error fetching IP address:', error);
-        return await respond(false, 500, `Error fetching IP address: ${error}`)
+        console.error('获取IP地址时出错:', error);
+        return await respond(false, 500, `获取IP地址时出错: ${error}`)
     }
 }
 
 async function getWarpConfigs(request, env) {
     const isPro = httpConfig.client === 'amnezia';
     const auth = await Authenticate(request, env);
-    if (!auth) return new Response('Unauthorized or expired session.', { status: 401 });
+    if (!auth) return new Response('未授权或会话已过期', { status: 401 });
     const { warpConfigs, settings } = await getDataset(request, env);
     const warpConfig = extractWireguardParams(warpConfigs, false);
     const { warpIPv6, publicKey, privateKey } = warpConfig;
@@ -242,7 +242,7 @@ async function getWarpConfigs(request, env) {
             },
         });
     } catch (error) {
-        return new Response(`Error generating ZIP file: ${error}`, { status: 500 });
+        return new Response(`生成ZIP文件时出错: ${error}`, { status: 500 });
     }
 }
 
@@ -289,17 +289,17 @@ export async function renderSecrets() {
 async function updateWarpConfigs(request, env) {
     if (request.method === 'POST') {
         const auth = await Authenticate(request, env);
-        if (!auth) return await respond(false, 401, 'Unauthorized.');
+        if (!auth) return await respond(false, 401, '未授权');
         try {
             await fetchWarpConfigs(env);
-            return await respond(true, 200, 'Warp configs updated successfully!');
+            return await respond(true, 200, 'Warp配置更新成功！');
         } catch (error) {
             console.log(error);
-            return await respond(false, 500, `An error occurred while updating Warp configs: ${error}`);
+            return await respond(false, 500, `更新Warp配置时出错: ${error}`);
         }
     }
 
-    return await respond(false, 405, 'Method not allowd.');
+    return await respond(false, 405, '方法不被允许');
 }
 
 export async function respond(success, status, message, body, customHeaders) {
