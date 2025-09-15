@@ -46,7 +46,7 @@ export async function updateDataset(request, env) {
         return typeof callback === 'function' ? callback(value) : value;
     }
 
-    const remoteDNS = populateField('remoteDNS', 'https://8.8.8.8/dns-query');
+    const remoteDNS = populateField('remoteDNS', 'https://dns.google/dns-query');
     const initDoh = async () => {
         const { host, isHostDomain } = getDomain(remoteDNS);
         const dohHost = {
@@ -66,8 +66,8 @@ export async function updateDataset(request, env) {
     const settings = {
         remoteDNS,
         dohHost: await initDoh(),
-        localDNS: populateField('localDNS', '8.8.8.8'),
-        antiSanctionDNS: populateField('antiSanctionDNS', '78.157.42.100'),
+        localDNS: populateField('localDNS', '114.114.114.114'),
+        antiSanctionDNS: populateField('antiSanctionDNS', '8.8.4.4'),
         VLTRFakeDNS: populateField('VLTRFakeDNS', false),
         proxyIPMode: populateField('proxyIPMode', 'proxyip'),
         proxyIPs: populateField('proxyIPs', []),
@@ -75,7 +75,7 @@ export async function updateDataset(request, env) {
         outProxy: populateField('outProxy', ''),
         outProxyParams: populateField('outProxy', {}, field => extractChainProxyParams(field)),
         cleanIPs: populateField('cleanIPs', []),
-        VLTRenableIPv6: populateField('VLTRenableIPv6', true),
+        VLTRenableIPv6: populateField('VLTRenableIPv6', false),
         customCdnAddrs: populateField('customCdnAddrs', []),
         customCdnHost: populateField('customCdnHost', ''),
         customCdnSni: populateField('customCdnSni', ''),
@@ -89,9 +89,9 @@ export async function updateDataset(request, env) {
         fragmentIntervalMin: populateField('fragmentIntervalMin', 1),
         fragmentIntervalMax: populateField('fragmentIntervalMax', 1),
         fragmentPackets: populateField('fragmentPackets', 'tlshello'),
-        bypassLAN: populateField('bypassLAN', false),
+        bypassLAN: populateField('bypassLAN', true),
         bypassIran: populateField('bypassIran', false),
-        bypassChina: populateField('bypassChina', false),
+        bypassChina: populateField('bypassChina', true),
         bypassRussia: populateField('bypassRussia', false),
         bypassOpenAi: populateField('bypassOpenAi', false),
         bypassMicrosoft: populateField('bypassMicrosoft', false),
@@ -105,7 +105,7 @@ export async function updateDataset(request, env) {
         bypassAsus: populateField('bypassAsus', false),
         bypassHp: populateField('bypassHp', false),
         bypassLenovo: populateField('bypassLenovo', false),
-        blockAds: populateField('blockAds', false),
+        blockAds: populateField('blockAds', true),
         blockPorn: populateField('blockPorn', false),
         blockUDP443: populateField('blockUDP443', false),
         customBypassRules: populateField('customBypassRules', []),
