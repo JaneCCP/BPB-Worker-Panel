@@ -79,20 +79,22 @@ h2 {
 
 .form-control {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 }
 
 label {
     font-weight: bold;
     color: var(--lable-text-color);
+    white-space: nowrap;
+    min-width: fit-content;
 }
 
 .password-wrapper {
     display: flex;
-    width: 70%;
+    flex: 1;
     position: relative;
+    max-width: 280px;
 }
 
 .password-wrapper input[type=password],
@@ -162,6 +164,24 @@ button {
         'wght' 400,
         'GRAD' 0,
         'opsz' 24
+}
+
+/* 手机屏幕 */
+@media only screen and (max-width: 575px) {
+    .form-control {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    label {
+        text-align: left;
+    }
+    
+    .password-wrapper {
+        max-width: none;
+        width: 100%;
+    }
 }
 
 @media only screen and (min-width: 576px) {
