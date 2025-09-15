@@ -3,6 +3,7 @@ import { getClashNormalConfig, getClashWarpConfig } from "#configs/clash";
 import { extractWireguardParams } from "#configs/utils";
 import { getSingBoxCustomConfig, getSingBoxWarpConfig } from "#configs/sing-box";
 import { getXrayCustomConfigs, getXrayWarpConfigs } from "#configs/xray";
+import { getSimpleNormalConfigs } from "#configs/simpleNormal";
 import { getDataset, updateDataset } from "#kv";
 import JSZip from "jszip";
 import { fetchWarpConfigs } from "#protocols/warp";
@@ -81,6 +82,8 @@ export async function handleSubscriptions(request, env) {
     const path = decodeURIComponent(globalConfig.pathName);
 
     switch (path) {
+        case `/sub/simple-normal/${subPath}`:
+            return await getSimpleNormalConfigs();
         case `/sub/normal/${subPath}`:
             switch (client) {
                 case 'sing-box':
