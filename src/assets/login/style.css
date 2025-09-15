@@ -94,7 +94,6 @@ label {
     display: flex;
     flex: 1;
     position: relative;
-    max-width: 280px;
 }
 
 .password-wrapper input[type=password],
