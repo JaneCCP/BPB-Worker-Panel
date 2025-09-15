@@ -46,7 +46,7 @@ export async function updateDataset(request, env) {
         return typeof callback === 'function' ? callback(value) : value;
     }
 
-    const remoteDNS = populateField('remoteDNS', 'https://dns.google/dns-query');
+    const remoteDNS = populateField('remoteDNS', 'https://dns.google/resolve');
     const initDoh = async () => {
         const { host, isHostDomain } = getDomain(remoteDNS);
         const dohHost = {
