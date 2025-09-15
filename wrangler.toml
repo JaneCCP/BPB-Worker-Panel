@@ -2,7 +2,6 @@ name = "__WORKER_NAME__"
 main = "dist/worker.js"
 compatibility_date = "2024-01-01"
 minify = false
-node_compat = false
 
 [vars]
 ENVIRONMENT = "production"
@@ -16,7 +15,9 @@ name = "__WORKER_NAME__"
 account_id = "__ACCOUNT_ID__"
 zone_id = "__ZONE_ID__"
 minify = false
-node_compat = false
+
+[env.production.vars]
+ENVIRONMENT = "production"
 
 [[env.production.kv_namespaces]]
 binding = "kv"
