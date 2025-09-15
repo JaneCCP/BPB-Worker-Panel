@@ -15,13 +15,13 @@ document.getElementById('loginForm').addEventListener('submit', async (event) =>
         const { success, status, message } = await response.json();
         if (!success) {
             const passwordError = document.getElementById("passwordError");
-            passwordError.textContent = '⚠️ 密码错误!';
-            throw new Error(`登录失败，状态码 ${status}: ${message}`);
+            passwordError.textContent = '⚠️ Wrong Password!';
+            throw new Error(`Login failed with status ${status}: ${message}`);
         }
 
         window.location.href = '/panel';
     } catch (error) {
-        console.error('登录错误:', error.message || error);
+        console.error('Login error:', error.message || error);
     }
 });
 

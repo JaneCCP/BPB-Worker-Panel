@@ -58,7 +58,7 @@ async function processHtmlPages() {
         result[dir] = JSON.stringify(encodedHtml);
     }
 
-    console.log(`${success} 资源打包成功!`);
+    console.log(`${success} Assets bundled successfuly!`);
     return result;
 }
 
@@ -107,7 +107,7 @@ async function buildWorker() {
         }
     });
 
-    console.log(`${success} Worker构建成功!`);
+    console.log(`${success} Worker built successfuly!`);
 
     const minifyCode = async (code) => {
         const minified = await jsMinify(code, {
@@ -121,7 +121,7 @@ async function buildWorker() {
             }
         });
 
-        console.log(`${success} Worker压缩成功!`);
+        console.log(`${success} Worker minified successfuly!`);
         return minified;
     }
 
@@ -146,21 +146,12 @@ async function buildWorker() {
             target: "browser"
         });
 
-        console.log(`${success} Worker混淆成功!`);
+        console.log(`${success} Worker obfuscated successfuly!`);
         finalCode = obfuscationResult.getObfuscatedCode();
     }
 
-    const buildTimestamp = new Date().toLocaleString('zh-CN', { 
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    });
-    const buildInfo = `// Build: ${buildTimestamp} \n`;
+    const buildTimestamp = new Date().toISOString();
+    const buildInfo = `// Build: ${buildTimestamp}\n`;
     const worker = `${buildInfo}// @ts-nocheck\n${finalCode}`;
     mkdirSync(DIST_PATH, { recursive: true });
     writeFileSync('./dist/worker.js', worker, 'utf8');
@@ -172,11 +163,11 @@ async function buildWorker() {
         compression: 'DEFLATE'
     }).then(nodebuffer => writeFileSync('./dist/worker.zip', nodebuffer));
 
-    console.log(`${success} 完成!`);
+    console.log(`${success} Done!`);
 }
 
 buildWorker().catch(err => {
-    console.error(`${failure} 构建失败:`, err);
+    console.error(`${failure} Build failed:`, err);
     process.exit(1);
 });
 

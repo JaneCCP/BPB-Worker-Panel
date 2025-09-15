@@ -17,8 +17,10 @@ const [
 
 const defaultHttpsPorts = [443, 8443, 2053, 2083, 2087, 2096];
 const defaultHttpPorts = [80, 8080, 8880, 2052, 2082, 2086, 2095];
-const ipv6Regex = /^\[(?:(?:[a-fA-F0-9]{1,4}:){7}[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,7}:|(?:[a-fA-F0-9]{1,4}:){1,6}:[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,5}(?::[a-fA-F0-9]{1,4}){1,2}|(?:[a-fA-F0-9]{1,4}:){1,4}(?::[a-fA-F0-9]{1,4}){1,3}|(?:[a-fA-F0-9]{1,4}:){1,3}(?::[a-fA-F0-9]{1,4}){1,4}|(?:[a-fA-F0-9]{1,4}:){1,2}(?::[a-fA-F0-9]{1,4}){1,5}|[a-fA-F0-9]{1,4}:(?::[a-fA-F0-9]{1,4}){1,6}|:(?::[a-fA-F0-9]{1,4}){1,7})\](?:\/(?:12[0-8]|1[01]?\d|[0-9]?\d))?$/;
-const ipv4Regex = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)(?:\/(?:\d|[12]\d|3[0-2]))?$/;
+const ipv4Regex = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+const ipv6Regex = /^\[(?:(?:[a-fA-F0-9]{1,4}:){7}[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,7}:|(?:[a-fA-F0-9]{1,4}:){1,6}:[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,5}(?::[a-fA-F0-9]{1,4}){1,2}|(?:[a-fA-F0-9]{1,4}:){1,4}(?::[a-fA-F0-9]{1,4}){1,3}|(?:[a-fA-F0-9]{1,4}:){1,3}(?::[a-fA-F0-9]{1,4}){1,4}|(?:[a-fA-F0-9]{1,4}:){1,2}(?::[a-fA-F0-9]{1,4}){1,5}|[a-fA-F0-9]{1,4}:(?::[a-fA-F0-9]{1,4}){1,6}|:(?::[a-fA-F0-9]{1,4}){1,7})\]$/;
+const ipv4CidrRegex = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)(?:\/(?:[0-9]|[1-2][0-9]|3[0-2]))?$/;
+const ipv6CidrRegex = /^(?:(?:[a-fA-F0-9]{1,4}:){7}[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,7}:|(?:[a-fA-F0-9]{1,4}:){1,6}:[a-fA-F0-9]{1,4}|(?:[a-fA-F0-9]{1,4}:){1,5}(?::[a-fA-F0-9]{1,4}){1,2}|(?:[a-fA-F0-9]{1,4}:){1,4}(?::[a-fA-F0-9]{1,4}){1,3}|(?:[a-fA-F0-9]{1,4}:){1,3}(?::[a-fA-F0-9]{1,4}){1,4}|(?:[a-fA-F0-9]{1,4}:){1,2}(?::[a-fA-F0-9]{1,4}){1,5}|[a-fA-F0-9]{1,4}:(?::[a-fA-F0-9]{1,4}){1,6}|:(?::[a-fA-F0-9]{1,4}){1,7}|::)(?:\/(?:12[0-8]|1[01]?[0-9]|[0-9]?[0-9]))?$/;
 const domainRegex = /^(?=.{1,253}$)(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)\.)+[a-zA-Z]{2,63}$/;
 
 fetch('/panel/settings')
@@ -36,7 +38,7 @@ fetch('/panel/settings')
         globalThis.subPath = encodeURIComponent(subPath);
         initiatePanel(proxySettings);
     })
-    .catch(error => console.error("数据查询错误:", error.message || error))
+    .catch(error => console.error("Data query error:", error.message || error))
     .finally(() => {
         window.onclick = (event) => {
             const qrModal = document.getElementById('qrModal');
@@ -149,7 +151,7 @@ async function getIpDetails(ip) {
         if (!success) throw new Error(`status ${status} - ${message}`);
         return body;
     } catch (error) {
-        console.error("获取 IP 错误:", error.message || error)
+        console.error("Fetching IP error:", error.message || error)
     }
 }
 
@@ -173,7 +175,7 @@ async function fetchIPInfo() {
         updateUI(ip, country, countryCode, city, isp);
         refreshIcon.classList.remove('fa-spin');
     } catch (error) {
-        console.error("获取 IP 错误:", error.message || error)
+        console.error("Fetching IP error:", error.message || error)
     }
 
     try {
@@ -183,12 +185,12 @@ async function fetchIPInfo() {
             throw new Error(`Fetch Cloudflare targets IP failed with status ${response.status} at ${response.url} - ${errorMessage}`);
         }
 
-        const ip = (await response.text()).trim();
+        const ip = await response.text();
         const { country, countryCode, city, isp } = await getIpDetails(ip);
         updateUI(ip, country, countryCode, city, isp, true);
         refreshIcon.classList.remove('fa-spin');
     } catch (error) {
-        console.error("获取 IP 错误:", error.message || error)
+        console.error("Fetching IP error:", error.message || error)
     }
 }
 
@@ -222,7 +224,7 @@ async function dlURL(path, app) {
         if (!response.ok) throw new Error(`status ${response.status} at ${response.url} - ${data}`);
         downloadJSON(data, "config.json");
     } catch (error) {
-        console.error("下载错误:", error.message || error);
+        console.error("Download error:", error.message || error);
     }
 }
 
@@ -260,7 +262,7 @@ async function uploadSettings(event) {
         updateSettings(event, settings);
         initiatePanel(settings);
     } catch (err) {
-        console.error('导入设置失败:', err.message);
+        console.error('Failed to import settings:', err.message);
     }
 }
 
@@ -289,12 +291,12 @@ function openQR(path, app, tag, title, singboxType, hiddifyType) {
 
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text)
-        .then(() => alert('✅ 已复制到剪贴板:\n\n' + text))
-        .catch(error => console.error('复制失败:', error));
+        .then(() => alert('✅ Copied to clipboard:\n\n' + text))
+        .catch(error => console.error('Failed to copy:', error));
 }
 
 async function updateWarpConfigs() {
-    const confirmReset = confirm('⚠️ 您确定吗？');
+    const confirmReset = confirm('⚠️ Are you sure?');
     if (!confirmReset) return;
     const refreshBtn = document.getElementById('warp-update');
     document.body.style.cursor = 'wait';
@@ -306,13 +308,13 @@ async function updateWarpConfigs() {
         document.body.style.cursor = 'default';
         refreshBtn.classList.remove('fa-spin');
         if (!success) {
-            alert(`⚠️ 发生错误，请重试!\n⛔ ${message}`);
+            alert(`⚠️ An error occured, Please try again!\n⛔ ${message}`);
             throw new Error(`status ${status} - ${message}`);
         }
 
-        alert('✅ Warp 配置更新成功!');
+        alert('✅ Warp configs updated successfully!');
     } catch (error) {
-        console.error("更新 Warp 配置错误:", error.message || error)
+        console.error("Updating Warp configs error:", error.message || error)
     }
 }
 
@@ -326,7 +328,7 @@ function handleProtocolChange(event) {
     if (globalThis.activeProtocols === 0) {
         event.preventDefault();
         event.target.checked = !event.target.checked;
-        alert("⛔ 至少选择一个协议!");
+        alert("⛔ At least one Protocol should be selected!");
         globalThis.activeProtocols++;
         return false;
     }
@@ -343,14 +345,14 @@ function handlePortChange(event) {
     if (globalThis.activeTlsPorts.length === 0) {
         event.preventDefault();
         event.target.checked = !event.target.checked;
-        alert("⛔ 至少选择一个 TLS 端口!");
+        alert("⛔ At least one TLS port should be selected!");
         globalThis.activeTlsPorts.push(portField);
         return false;
     }
 }
 
 function resetSettings() {
-    const confirmReset = confirm('⚠️ 这将重置所有面板设置.\n\n❓ 您确定吗?');
+    const confirmReset = confirm('⚠️ This will reset all panel settings.\n\n❓ Are you sure?');
     if (!confirmReset) return;
     const resetBtn = document.getElementById("refresh-btn");
     resetBtn.classList.add('fa-spin');
@@ -370,16 +372,19 @@ function resetSettings() {
             resetBtn.classList.remove('fa-spin');
             if (!success) throw new Error(`status ${status} - ${message}`);
             initiatePanel(body);
-            alert('✅ 面板设置已成功重置为默认值!');
+            alert('✅ Panel settings reset to default successfully!');
         })
-        .catch(error => console.error("重置设置错误:", error.message || error));
+        .catch(error => console.error("Reseting settings error:", error.message || error));
 }
 
 function validateSettings() {
     const elementsToCheck = [
-        'cleanIPs', 'customCdnAddrs', 'customCdnSni', 'customCdnHost',
-        'customBypassRules', 'customBlockRules', 'customBypassSanctionRules'
+        'cleanIPs',
+        'customCdnAddrs',
+        'customCdnSni',
+        'customCdnHost'
     ];
+
     const configForm = document.getElementById('configForm');
     const formData = new FormData(configForm);
 
@@ -411,7 +416,8 @@ function validateSettings() {
         validateChainProxy(),
         validateCustomCdn(),
         validateXrayNoises(fields),
-        validateSanctionDns()
+        validateSanctionDns(),
+        validateCustomRules()
     ];
 
     if (!validations.every(Boolean)) return false;
@@ -472,15 +478,15 @@ function updateSettings(event, data) {
 
             const { success, status, message } = data;
             if (status === 401) {
-                alert('⚠️ 会话已过期! 请重新登录.');
+                alert('⚠️ Session expired! Please login again.');
                 window.location.href = '/login';
             }
 
             if (!success) throw new Error(`status ${status} - ${message}`);
             initiateForm();
-            alert('✅ 设置已成功应用!');
+            alert('✅ Settings applied successfully!');
         })
-        .catch(error => console.error("更新设置错误:", error.message || error))
+        .catch(error => console.error("Update settings error:", error.message || error))
         .finally(() => {
             document.body.style.cursor = 'default';
             applyButton.value = applyButtonVal;
@@ -500,17 +506,21 @@ function validateSanctionDns() {
 
     const isValid = isValidHostName(host, false);
     if (!isValid) {
-        alert('⛔ 无效的 IP 或域名.\n👉' + host);
+        alert('⛔ Invalid IPs or Domains.\n👉' + host);
         return false;
     }
 
     return true;
 }
 
+function parseElmValues(id) {
+    return document.getElementById(id).value?.split('\n') || [];
+}
+
 function parseHostPort(input) {
     const regex = /^(?<host>\[.*?\]|[^:]+)(?::(?<port>\d+))?$/;
     const match = input.match(regex);
-    
+
     if (!match) return null;
 
     return {
@@ -528,15 +538,30 @@ function isValidHostName(value, isHost) {
     return ipv6Regex.test(host) || ipv4Regex.test(host) || domainRegex.test(host);
 }
 
+function validateCustomRules() {
+    const invalidValues = [
+        'customBypassRules',
+        'customBlockRules',
+        'customBypassSanctionRules'
+    ].flatMap(parseElmValues)
+        .map(value => value.trim())
+        .filter(value => value && !ipv4CidrRegex.test(value) && !ipv6CidrRegex.test(value) && !domainRegex.test(value));
+
+    if (invalidValues.length) {
+        alert('⛔ Invalid IPs, Domains or IP ranges.\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
+        return false;
+    }
+
+    return true;
+}
+
 function validateMultipleHostNames(elements) {
-    const getValue = (id) => document.getElementById(id).value?.split('\n').filter(Boolean);
+    const invalidValues = elements.flatMap(parseElmValues)
+        .map(value => value.trim())
+        .filter(value => value && !isValidHostName(value));
 
-    const ips = [];
-    elements.forEach(id => ips.push(...getValue(id)));
-    const invalidIPs = ips?.filter(value => !isValidHostName(value));
-
-    if (invalidIPs.length) {
-        alert('⛔ 无效的 IP 或域名.\n👉 请在每行输入一个 IP 或域名.\n\n' + invalidIPs.map(ip => `⚠️ ${ip}`).join('\n'));
+    if (invalidValues.length) {
+        alert('⛔ Invalid IPs or Domains.\n👉 Please enter each IP or Domain in a new line.\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
         return false;
     }
 
@@ -544,11 +569,12 @@ function validateMultipleHostNames(elements) {
 }
 
 function validateProxyIPs() {
-    const proxyIPs = document.getElementById('proxyIPs').value?.split('\n').filter(Boolean);
-    const invalidValues = proxyIPs?.filter(value => !isValidHostName(value));
+    const invalidValues = parseElmValues('proxyIPs')
+        .map(value => value.trim())
+        .filter(value => value && !isValidHostName(value));
 
     if (invalidValues.length) {
-        alert('⛔ 无效的代理 IP.\n👉 请在每行输入一个 IP 或域名.\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
+        alert('⛔ Invalid proxy IPs.\n👉 Please enter each IP/domain in a new line.\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
         return false;
     }
 
@@ -556,11 +582,12 @@ function validateProxyIPs() {
 }
 
 function validateNAT64Prefixes() {
-    const prefixes = document.getElementById('prefixes').value?.split('\n').filter(Boolean).map(prefix => prefix.trim());
-    const invalidValues = prefixes?.filter(value => !ipv6Regex.test(value));
+    const invalidValues = parseElmValues('prefixes')
+        .map(prefix => prefix.trim())
+        .filter(value => value && !ipv6Regex.test(value));
 
     if (invalidValues.length) {
-        alert('⛔ 无效的 NAT64 前缀.\n👉 请使用 [] 在每行输入一个前缀.\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
+        alert('⛔ Invalid NAT64 prefix.\n👉 Please enter each prefix in a new line using [].\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
         return false;
     }
 
@@ -568,11 +595,12 @@ function validateNAT64Prefixes() {
 }
 
 function validateWarpEndpoints() {
-    const warpEndpoints = document.getElementById('warpEndpoints').value?.split('\n').filter(Boolean);
-    const invalidEndpoints = warpEndpoints?.filter(value => !isValidHostName(value, true));
+    const invalidEndpoints = parseElmValues('warpEndpoints')
+        .map(prefix => prefix.trim())
+        .filter(value => value && !isValidHostName(value, true));
 
     if (invalidEndpoints.length) {
-        alert('⛔ 无效的端点.\n\n' + invalidEndpoints.map(endpoint => `⚠️ ${endpoint}`).join('\n'));
+        alert('⛔ Invalid endpoint.\n\n' + invalidEndpoints.map(endpoint => `⚠️ ${endpoint}`).join('\n'));
         return false;
     }
 
@@ -602,7 +630,7 @@ function validateMinMax() {
         noiseSizeMin > noiseSizeMax ||
         noiseDelayMin > noiseDelayMax
     ) {
-        alert('⛔ 最小值应小于或等于最大值!');
+        alert('⛔ Minimum should be smaller or equal to Maximum!');
         return false;
     }
 
@@ -619,7 +647,7 @@ function validateChainProxy() {
     const validTransmission = /type=(tcp|grpc|ws)/.test(chainProxy);
 
     if (!(isVless && (hasSecurity && validSecurityType || !hasSecurity) && validTransmission) && !isSocksHttp && chainProxy) {
-        alert('⛔ 无效的配置!\n - 链式代理应为 VLESS、Socks 或 Http!\n - VLESS 传输方式应为 GRPC、WS 或 TCP\n - VLESS 安全性应为 TLS、Reality 或 None\n - socks 或 http 格式应为:\n + (socks 或 http)://user:pass@host:port\n + (socks 或 http)://host:port');
+        alert('⛔ Invalid Config!\n - The chain proxy should be VLESS, Socks or Http!\n - VLESS transmission should be GRPC,WS or TCP\n - VLESS security should be TLS,Reality or None\n - socks or http should be like:\n + (socks or http)://user:pass@host:port\n + (socks or http)://host:port');
         return false;
     }
 
@@ -629,7 +657,7 @@ function validateChainProxy() {
     const vlessPort = match?.[1] || null;
 
     if (isVless && securityType === 'tls' && vlessPort !== '443') {
-        alert('⛔ VLESS TLS 端口必须为 443 才能用作代理链!');
+        alert('⛔ VLESS TLS port can be only 443 to be used as a proxy chain!');
         return false;
     }
 
@@ -643,7 +671,7 @@ function validateCustomCdn() {
 
     const isCustomCdn = customCdnAddrs.length || customCdnHost !== '' || customCdnSni !== '';
     if (isCustomCdn && !(customCdnAddrs.length && customCdnHost && customCdnSni)) {
-        alert('⛔ 所有 "自定义" 字段应一起填写或删除!');
+        alert('⛔ All "Custom" fields should be filled or deleted together!');
         return false;
     }
 
@@ -657,7 +685,7 @@ function validateXrayNoises(fields) {
 
     modes.forEach((mode, index) => {
         if (delaysMin[index] > delaysMax[index]) {
-            alert('⛔ 最小噪音延迟应小于或等于最大噪音延迟!');
+            alert('⛔ The minimum noise delay should be smaller or equal to maximum!');
             submisionError = true;
             return;
         }
@@ -666,7 +694,7 @@ function validateXrayNoises(fields) {
 
             case 'base64': {
                 if (!base64Regex.test(packets[index])) {
-                    alert('⛔ Base64 噪音数据包不是有效的 base64 值!');
+                    alert('⛔ The Base64 noise packet is not a valid base64 value!');
                     submisionError = true;
                 }
 
@@ -674,13 +702,13 @@ function validateXrayNoises(fields) {
             }
             case 'rand': {
                 if (!(/^\d+-\d+$/.test(packets[index]))) {
-                    alert('⛔ 随机噪音数据包应为范围格式，如 0-10 或 10-30!');
+                    alert('⛔ The Random noise packet should be a range like 0-10 or 10-30!');
                     submisionError = true;
                 }
 
                 const [min, max] = packets[index].split("-").map(Number);
                 if (min > max) {
-                    alert('⛔ 随机噪音数据包的最小值应小于或等于最大值!');
+                    alert('⛔ The minimum Random noise packet should be smaller or equal to maximum!');
                     submisionError = true;
                 }
 
@@ -688,7 +716,7 @@ function validateXrayNoises(fields) {
             }
             case 'hex': {
                 if (!(/^(?=(?:[0-9A-Fa-f]{2})*$)[0-9A-Fa-f]+$/.test(packets[index]))) {
-                    alert('⛔ 十六进制噪音数据包不是有效的十六进制值! 长度应为偶数且由 0-9、a-f 和 A-F 组成.');
+                    alert('⛔ The Hex noise packet is not a valid hex value! It should have even length and consisted of 0-9, a-f and A-F.');
                     submisionError = true;
                 }
 
@@ -710,7 +738,7 @@ function logout(event) {
             if (!success) throw new Error(`status ${status} - ${message}`);
             window.location.href = '/login';
         })
-        .catch(error => console.error("登出错误:", error.message || error));
+        .catch(error => console.error("Logout error:", error.message || error));
 }
 
 document.querySelectorAll(".toggle-password").forEach(toggle => {
@@ -762,11 +790,11 @@ function resetPassword(event) {
                 throw new Error(`status ${status} - ${message}`);
             }
 
-            alert("✅ 密码修改成功! 👍");
+            alert("✅ Password changed successfully! 👍");
             window.location.href = '/login';
 
         })
-        .catch(error => console.error("重置密码错误:", error.message || error))
+        .catch(error => console.error("Reset password error:", error.message || error))
         .finally(() => {
             resetPassModal.style.display = "none";
             document.body.style.overflow = "";
@@ -821,31 +849,31 @@ function addUdpNoise(isManual, noiseIndex, udpNoise) {
 
     container.innerHTML = `
         <div class="header-container">
-            <h4>噪音 ${index + 1}</h4>
+            <h4>Noise ${index + 1}</h4>
             <button type="button" class="delete-noise">
                 <i class="fa fa-minus-circle fa-2x" aria-hidden="true"></i>
             </button>      
         </div>
         <div class="section">
             <div class="form-control">
-                <label>😵‍💫 v2ray 模式</label>
+                <label>😵‍💫 v2ray Mode</label>
                 <div>
                     <select name="udpXrayNoiseMode">
                         <option value="base64" ${noise.type === 'base64' ? 'selected' : ''}>Base64</option>
-                        <option value="rand" ${noise.type === 'rand' ? 'selected' : ''}>随机</option>
-                        <option value="str" ${noise.type === 'str' ? 'selected' : ''}>字符串</option>
-                        <option value="hex" ${noise.type === 'hex' ? 'selected' : ''}>十六进制</option>
+                        <option value="rand" ${noise.type === 'rand' ? 'selected' : ''}>Random</option>
+                        <option value="str" ${noise.type === 'str' ? 'selected' : ''}>String</option>
+                        <option value="hex" ${noise.type === 'hex' ? 'selected' : ''}>Hex</option>
                     </select>
                 </div>
             </div>
             <div class="form-control">
-                <label>📥 噪音数据包</label>
+                <label>📥 Noise Packet</label>
                 <div>
                     <input type="text" name="udpXrayNoisePacket" value="${noise.packet}">
                 </div>
             </div>
             <div class="form-control">
-                <label>🕞 噪音延迟</label>
+                <label>🕞 Noise Delay</label>
                 <div class="min-max">
                     <input type="number" name="udpXrayNoiseDelayMin"
                         value="${noise.delay.split('-')[0]}" min="1" required>
@@ -855,7 +883,7 @@ function addUdpNoise(isManual, noiseIndex, udpNoise) {
                 </div>
             </div>
             <div class="form-control">
-                <label>🎚️ 噪音次数</label>
+                <label>🎚️ Noise Count</label>
                 <div>
                     <input type="number" name="udpXrayNoiseCount" value="${noise.count}" min="1" required>
                 </div>
@@ -914,11 +942,11 @@ function generateUdpNoise(event) {
 
 function deleteUdpNoise(event) {
     if (globalThis.xrayNoiseCount === 1) {
-        alert('⛔ 您不能删除所有噪音!');
+        alert('⛔ You cannot delete all noises!');
         return;
     }
 
-    const confirmReset = confirm('⚠️ 这将删除噪音.\n\n❓ 您确定吗?');
+    const confirmReset = confirm('⚠️ This will delete the noise.\n\n❓ Are you sure?');
     if (!confirmReset) return;
     event.target.closest(".inner-container").remove();
     enableApplyButton();
