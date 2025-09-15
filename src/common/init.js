@@ -12,7 +12,7 @@ export function init(request, env) {
         TrPass: TR_PASS,
         pathName: pathname,
         fallbackDomain: FALLBACK || 'www.baidu.com',
-        dohURL: DOH_URL || 'https://dns.google/dns-query'
+        dohURL: DOH_URL || 'https://cloudflare-dns.com/dns-query'
     })
 }
 
