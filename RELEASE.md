@@ -1,13 +1,13 @@
-# ⚙️ Bug fixes and Improvements
+# ⚙️ 错误修复和改进
 
-- Removed `Normal` subscription due to poor efficiency and user errors and renamed `Full Normal` to `Normal`
-- Removed support for some deprecated clients which are not sync to cores changes or modify configs after import like `Hiddify`
-- Changed some subscriptions URL
-- Added help refrences to Panel
-- Refactored project
-- Updated docs
-- Bug fix #1022
-- Bug fix, custom rules IP CIDR validation
+- 移除了 `Normal` 订阅类型，因其效率低下且容易导致用户错误，并将 `Full Normal` 重命名为 `Normal`
+- 停止支持一些已弃用的客户端，这些客户端无法同步核心更新或在导入后修改配置（如 `Hiddify`）
+- 更改了部分订阅链接
+- 在面板中添加了帮助文档引用
+- 重构了项目结构
+- 更新了文档
+- 修复了 #1022 号错误
+- 修复了错误：自定义规则的 IP CIDR 验证
 
-> [!CAUTION]
-> Some subscription URLs are changed, so you have to get new subscriptions from panel again.
+> [!注意]
+> 部分订阅链接已更改，您需要重新从面板获取新的订阅链接。
