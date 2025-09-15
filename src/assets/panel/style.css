@@ -696,7 +696,7 @@ table button:active {
 .floating-button {
     position: fixed;
     bottom: 20px;
-    left: 20px;
+    right: 20px;
     background-color: var(--color);
     color: white;
     border: none;
