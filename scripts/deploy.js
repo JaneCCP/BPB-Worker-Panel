@@ -120,9 +120,12 @@ async function configureSubdomain() {
                 );
             }
             
-            // 使用找到的 Worker 的真实名称来构建地址，如果找不到就直接使用环境变量
-            const realWorkerName = currentWorker ? currentWorker.id : CLOUDFLARE_WORKER_NAME;
-            console.log(`🌐 Worker地址: https://${realWorkerName}.${subdomainResult.subdomain}.workers.dev`);
+            // 只有在成功获取到真实 Worker 名称时才输出地址
+            if (currentWorker && currentWorker.id) {
+                console.log(`🌐 Worker地址: https://${currentWorker.id}.${subdomainResult.subdomain}.workers.dev`);
+            } else {
+                console.log('⚠️ 无法获取 Worker 真实名称，跳过地址输出');
+            }
         } else {
             console.log('📝 创建子域名...');
             const createResult = await cloudflare.workers.subdomains.update({
@@ -150,9 +153,12 @@ async function configureSubdomain() {
                     );
                 }
                 
-                // 使用找到的 Worker 的真实名称来构建地址，如果找不到就直接使用环境变量
-                const realWorkerName = currentWorker ? currentWorker.id : CLOUDFLARE_WORKER_NAME;
-                console.log(`🌐 Worker地址: https://${realWorkerName}.${createResult.subdomain}.workers.dev`);
+                // 只有在成功获取到真实 Worker 名称时才输出地址
+                if (currentWorker && currentWorker.id) {
+                    console.log(`🌐 Worker地址: https://${currentWorker.id}.${createResult.subdomain}.workers.dev`);
+                } else {
+                    console.log('⚠️ 无法获取 Worker 真实名称，跳过地址输出');
+                }
             }
         }
         
