@@ -109,8 +109,29 @@ async function deployToCloudflare() {
                 }
             );
             
-            const workerInfoResult = await workerInfoResponse.json();
-            console.log('📋 Worker信息API响应:', JSON.stringify(workerInfoResult, null, 2));
+            console.log('📊 Worker信息响应状态:', workerInfoResponse.status);
+            console.log('📊 Worker信息响应头:', Object.fromEntries(workerInfoResponse.headers.entries()));
+            
+            // 检查响应内容类型
+            const contentType = workerInfoResponse.headers.get('content-type');
+            console.log('📊 响应内容类型:', contentType);
+            
+            let workerInfoResult;
+            try {
+                if (contentType && contentType.includes('application/json')) {
+                    workerInfoResult = await workerInfoResponse.json();
+                    console.log('📋 Worker信息API响应:', JSON.stringify(workerInfoResult, null, 2));
+                } else {
+                    const textResponse = await workerInfoResponse.text();
+                    console.log('📋 Worker信息非JSON响应:', textResponse);
+                    workerInfoResult = { success: false, error: 'Non-JSON response' };
+                }
+            } catch (parseError) {
+                console.log('❌ Worker信息JSON解析失败:', parseError.message);
+                const textResponse = await workerInfoResponse.text();
+                console.log('📋 原始响应内容:', textResponse);
+                workerInfoResult = { success: false, error: 'JSON parse failed' };
+            }
             
             // 获取Worker的子域名绑定信息
             console.log('📡 正在获取Worker子域名绑定...');
@@ -125,8 +146,27 @@ async function deployToCloudflare() {
             );
             
             console.log('📊 子域名绑定响应状态:', subdomainBindingResponse.status);
-            const subdomainBindingResult = await subdomainBindingResponse.json();
-            console.log('📋 子域名绑定API响应:', JSON.stringify(subdomainBindingResult, null, 2));
+            console.log('📊 子域名绑定响应头:', Object.fromEntries(subdomainBindingResponse.headers.entries()));
+            
+            const bindingContentType = subdomainBindingResponse.headers.get('content-type');
+            console.log('📊 绑定响应内容类型:', bindingContentType);
+            
+            let subdomainBindingResult;
+            try {
+                if (bindingContentType && bindingContentType.includes('application/json')) {
+                    subdomainBindingResult = await subdomainBindingResponse.json();
+                    console.log('📋 子域名绑定API响应:', JSON.stringify(subdomainBindingResult, null, 2));
+                } else {
+                    const textResponse = await subdomainBindingResponse.text();
+                    console.log('📋 子域名绑定非JSON响应:', textResponse);
+                    subdomainBindingResult = { success: false, error: 'Non-JSON response' };
+                }
+            } catch (parseError) {
+                console.log('❌ 子域名绑定JSON解析失败:', parseError.message);
+                const textResponse = await subdomainBindingResponse.text();
+                console.log('📋 绑定原始响应内容:', textResponse);
+                subdomainBindingResult = { success: false, error: 'JSON parse failed' };
+            }
             
             // 从API响应构建真实的Worker地址
             if (subdomainBindingResult.success && subdomainBindingResult.result?.enabled) {
@@ -147,8 +187,25 @@ async function deployToCloudflare() {
                     }
                 );
                 
-                const enableResult = await enableWorkerSubdomainResponse.json();
-                console.log('📋 启用Worker子域名结果:', JSON.stringify(enableResult, null, 2));
+                console.log('📊 启用子域名响应状态:', enableWorkerSubdomainResponse.status);
+                
+                let enableResult;
+                try {
+                    const enableContentType = enableWorkerSubdomainResponse.headers.get('content-type');
+                    if (enableContentType && enableContentType.includes('application/json')) {
+                        enableResult = await enableWorkerSubdomainResponse.json();
+                        console.log('📋 启用Worker子域名结果:', JSON.stringify(enableResult, null, 2));
+                    } else {
+                        const textResponse = await enableWorkerSubdomainResponse.text();
+                        console.log('📋 启用子域名非JSON响应:', textResponse);
+                        enableResult = { success: false, error: 'Non-JSON response' };
+                    }
+                } catch (parseError) {
+                    console.log('❌ 启用子域名JSON解析失败:', parseError.message);
+                    const textResponse = await enableWorkerSubdomainResponse.text();
+                    console.log('📋 启用原始响应内容:', textResponse);
+                    enableResult = { success: false, error: 'JSON parse failed' };
+                }
                 
                 if (enableResult.success) {
                     console.log('🎉 Worker子域名启用成功！');
