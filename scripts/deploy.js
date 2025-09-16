@@ -49,12 +49,11 @@ async function ensureKVNamespace() {
         // 获取所有现有的 KV 命名空间
         console.log(`📋 查找名为 "${CLOUDFLARE_KV_NAME}" 的 KV 命名空间...`);
         
-        const namespaces = [];
-        for await (const namespace of cloudflare.kv.namespaces.list({
-            account_id: CLOUDFLARE_ACCOUNT_ID
-        })) {
-            namespaces.push(namespace);
-        }
+        const namespacesResponse = await cloudflare.kv.namespaces.list({
+            account_id: CLOUDFLARE_ACCOUNT_ID,
+            per_page: 100
+        });
+        const namespaces = namespacesResponse.result || [];
         
         // 查找是否已存在同名的命名空间
         const existingNamespace = namespaces.find(ns => ns.title === CLOUDFLARE_KV_NAME);
@@ -150,14 +149,14 @@ async function deployToCloudflare() {
         console.log(`   - KV绑定: ${kvNamespaceId ? '✅ 已配置' : '⚠️ 未配置'}`);
         console.log('');
         
-        // 配置子域名
-        await configureSubdomain();
+        // 并行执行独立的配置操作
+        await Promise.all([
+            configureSubdomain(),
+            enableWorkersLogs()
+        ]);
         
-        // 检查并配置 KV 绑定
+        // KV绑定验证需要等待部署完成，所以单独执行
         await configureKVBinding();
-        
-        // 检查并启用日志
-        await enableWorkersLogs();
         
         // 部署完成总结
         console.log('');
@@ -289,62 +288,40 @@ async function configureKVBinding() {
         return;
     }
     
-    // 等待一下让 API 同步
-    console.log('⏳ 等待API同步绑定信息...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 重试机制
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            console.log(`📋 获取Worker配置信息... (尝试 ${attempt}/${maxRetries})`);
-            
-            // 使用正确的API方法获取Worker的配置信息（包含绑定）
-            const workerSettings = await cloudflare.workers.scripts.scriptAndVersionSettings.get(
-                CLOUDFLARE_WORKER_NAME, 
-                {
-                    account_id: CLOUDFLARE_ACCOUNT_ID
-                }
+    try {
+        console.log('📋 获取Worker配置信息...');
+        
+        // 使用正确的API方法获取Worker的配置信息（包含绑定）
+        const workerSettings = await cloudflare.workers.scripts.scriptAndVersionSettings.get(
+            CLOUDFLARE_WORKER_NAME, 
+            {
+                account_id: CLOUDFLARE_ACCOUNT_ID
+            }
+        );
+        
+        // 检查是否已有 KV 绑定
+        const kvBinding = workerSettings.bindings && 
+            workerSettings.bindings.find(binding => 
+                binding.type === 'kv_namespace' && 
+                binding.name === 'kv'
             );
-            
-            // 检查是否已有 KV 绑定
-            const kvBinding = workerSettings.bindings && 
-                workerSettings.bindings.find(binding => 
-                    binding.type === 'kv_namespace' && 
-                    binding.name === 'kv'
-                );
-            
-            if (kvBinding) {
-                console.log('✅ KV存储绑定验证成功！');
-                console.log('📋 KV绑定详细信息:');
-                console.log(`   - 绑定变量名: ${kvBinding.name}`);
-                console.log(`   - 命名空间ID: ${kvBinding.namespace_id}`);
-                console.log(`   - 数据库名称: ${CLOUDFLARE_KV_NAME}`);
-                console.log(`   - 绑定类型: ${kvBinding.type}`);
-                return; // 验证成功，退出重试循环
-            } else {
-                if (attempt < maxRetries) {
-                    console.log(`⚠️ 第${attempt}次尝试未检测到KV绑定，等待后重试...`);
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                } else {
-                    console.log('❌ 多次尝试后仍未检测到KV绑定配置');
-                    console.log('💡 可能原因:');
-                    console.log('   - API同步延迟，绑定可能需要更多时间生效');
-                    console.log('   - 请在Cloudflare控制台中手动验证绑定状态');
-                    console.log('   - 或稍后重新运行验证');
-                }
-            }
-            
-        } catch (error) {
-            if (attempt < maxRetries) {
-                console.log(`⚠️ 第${attempt}次验证失败，等待后重试:`, error.message);
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            } else {
-                console.log('❌ KV绑定验证失败:', error.message);
-                if (error.response) {
-                    console.log('📋 错误详情:', JSON.stringify(error.response.data, null, 2));
-                }
-            }
+        
+        if (kvBinding) {
+            console.log('✅ KV存储绑定验证成功！');
+            console.log('📋 KV绑定详细信息:');
+            console.log(`   - 绑定变量名: ${kvBinding.name}`);
+            console.log(`   - 命名空间ID: ${kvBinding.namespace_id}`);
+            console.log(`   - 数据库名称: ${CLOUDFLARE_KV_NAME}`);
+            console.log(`   - 绑定类型: ${kvBinding.type}`);
+        } else {
+            console.log('⚠️ 未检测到KV绑定配置');
+            console.log('💡 提示: 如果刚完成部署，绑定可能需要几分钟生效');
+        }
+        
+    } catch (error) {
+        console.log('❌ KV绑定验证失败:', error.message);
+        if (error.response) {
+            console.log('📋 错误详情:', JSON.stringify(error.response.data, null, 2));
         }
     }
 }
