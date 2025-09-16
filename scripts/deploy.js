@@ -64,10 +64,14 @@ async function deployToCloudflare() {
         const deployResult = await deployResponse.json();
         
         console.log('📊 部署响应状态:', deployResponse.status);
-        console.log('📋 部署结果:', JSON.stringify(deployResult, null, 2));
         
         if (deployResult.success) {
             console.log('✅ Worker部署成功！');
+            console.log('📋 部署信息:');
+            console.log(`   - Worker ID: ${deployResult.result.id}`);
+            console.log(`   - 部署时间: ${new Date(deployResult.result.modified_on).toLocaleString('zh-CN')}`);
+            console.log(`   - 启动时间: ${deployResult.result.startup_time_ms}ms`);
+            console.log(`   - 使用模式: ${deployResult.result.usage_model}`);
         } else {
             console.error('💥 Worker部署失败:', deployResult.errors);
             throw new Error(`部署失败: ${JSON.stringify(deployResult.errors)}`);
@@ -96,20 +100,17 @@ async function configureSubdomain() {
             account_id: CLOUDFLARE_ACCOUNT_ID
         });
         
-        console.log('📋 子域名状态:', JSON.stringify(subdomainResult, null, 2));
-        
         if (subdomainResult.subdomain) {
             console.log('🎉 子域名已启用！');
+            console.log(`   - 子域名: ${subdomainResult.subdomain}`);
             
             // 获取真实的 Worker 信息
             const workerInfo = await cloudflare.workers.scripts.get(CLOUDFLARE_WORKER_NAME, {
                 account_id: CLOUDFLARE_ACCOUNT_ID
             });
             
-            console.log('📋 Worker信息:', JSON.stringify(workerInfo, null, 2));
-            
-            // 使用从 API 获取的真实信息构建地址
-            const realWorkerName = workerInfo.id || CLOUDFLARE_WORKER_NAME;
+            // 强制使用从 API 获取的真实 Worker 名字
+            const realWorkerName = workerInfo.id;
             console.log(`🌐 Worker地址: https://${realWorkerName}.${subdomainResult.subdomain}.workers.dev`);
         } else {
             console.log('📝 创建子域名...');
@@ -118,20 +119,17 @@ async function configureSubdomain() {
                 subdomain: CLOUDFLARE_ACCOUNT_ID
             });
             
-            console.log('📋 子域名创建结果:', JSON.stringify(createResult, null, 2));
-            
             if (createResult.subdomain) {
                 console.log('✅ 子域名创建成功！');
+                console.log(`   - 子域名: ${createResult.subdomain}`);
                 
                 // 获取真实的 Worker 信息
                 const workerInfo = await cloudflare.workers.scripts.get(CLOUDFLARE_WORKER_NAME, {
                     account_id: CLOUDFLARE_ACCOUNT_ID
                 });
                 
-                console.log('📋 Worker信息:', JSON.stringify(workerInfo, null, 2));
-                
-                // 使用从 API 获取的真实信息构建地址
-                const realWorkerName = workerInfo.id || CLOUDFLARE_WORKER_NAME;
+                // 强制使用从 API 获取的真实 Worker 名字
+                const realWorkerName = workerInfo.id;
                 console.log(`🌐 Worker地址: https://${realWorkerName}.${createResult.subdomain}.workers.dev`);
             }
         }
@@ -166,10 +164,14 @@ async function enableWorkersLogs() {
             }
         );
         
-        console.log('📋 Workers日志配置结果:', JSON.stringify(logResult, null, 2));
-        
         if (logResult.observability && logResult.observability.logs && logResult.observability.logs.enabled) {
             console.log('✅ Workers日志已成功启用！');
+            console.log('📋 日志配置信息:');
+            console.log(`   - 可观测性: ${logResult.observability.enabled ? '已启用' : '未启用'}`);
+            console.log(`   - 日志记录: ${logResult.observability.logs.enabled ? '已启用' : '未启用'}`);
+            console.log(`   - 调用日志: ${logResult.observability.logs.invocation_logs ? '已启用' : '未启用'}`);
+            console.log(`   - 采样率: ${(logResult.observability.logs.head_sampling_rate * 100)}%`);
+            console.log(`   - Logpush: ${logResult.logpush ? '已启用' : '未启用'}`);
         } else {
             console.log('⚠️ Workers日志启用状态未确认');
         }
