@@ -104,16 +104,22 @@ async function configureSubdomain() {
             console.log('🎉 子域名已启用！');
             console.log(`   - 子域名: ${subdomainResult.subdomain}`);
             
-            // 获取真实的 Worker 信息
-            const workerInfo = await cloudflare.workers.scripts.get(CLOUDFLARE_WORKER_NAME, {
+            // 通过 SDK 获取 Worker 列表来找到真实的 Worker 名称
+            const workersList = await cloudflare.workers.scripts.list({
                 account_id: CLOUDFLARE_ACCOUNT_ID
             });
             
-            // 调试：查看 API 返回的结构
-            console.log('🔍 调试 - Worker信息结构:', JSON.stringify(workerInfo, null, 2));
+            // 查找当前 Worker
+            const currentWorker = workersList.find(worker => 
+                worker.id === CLOUDFLARE_WORKER_NAME || 
+                worker.script === CLOUDFLARE_WORKER_NAME
+            );
             
-            // 尝试不同的字段名来获取 Worker 名字
-            const realWorkerName = workerInfo.id || workerInfo.name || CLOUDFLARE_WORKER_NAME;
+            // 调试：查看找到的 Worker 信息
+            console.log('🔍 调试 - 找到的Worker信息:', JSON.stringify(currentWorker, null, 2));
+            
+            // 使用找到的 Worker 名称，优先使用 id 字段
+            const realWorkerName = currentWorker ? (currentWorker.id || currentWorker.script || CLOUDFLARE_WORKER_NAME) : CLOUDFLARE_WORKER_NAME;
             console.log(`🔍 调试 - 使用的Worker名字: ${realWorkerName}`);
             console.log(`🌐 Worker地址: https://${realWorkerName}.${subdomainResult.subdomain}.workers.dev`);
         } else {
@@ -127,16 +133,22 @@ async function configureSubdomain() {
                 console.log('✅ 子域名创建成功！');
                 console.log(`   - 子域名: ${createResult.subdomain}`);
                 
-                // 获取真实的 Worker 信息
-                const workerInfo = await cloudflare.workers.scripts.get(CLOUDFLARE_WORKER_NAME, {
+                // 通过 SDK 获取 Worker 列表来找到真实的 Worker 名称
+                const workersList = await cloudflare.workers.scripts.list({
                     account_id: CLOUDFLARE_ACCOUNT_ID
                 });
                 
-                // 调试：查看 API 返回的结构
-                console.log('🔍 调试 - Worker信息结构:', JSON.stringify(workerInfo, null, 2));
+                // 查找当前 Worker
+                const currentWorker = workersList.find(worker => 
+                    worker.id === CLOUDFLARE_WORKER_NAME || 
+                    worker.script === CLOUDFLARE_WORKER_NAME
+                );
                 
-                // 尝试不同的字段名来获取 Worker 名字
-                const realWorkerName = workerInfo.id || workerInfo.name || CLOUDFLARE_WORKER_NAME;
+                // 调试：查看找到的 Worker 信息
+                console.log('🔍 调试 - 找到的Worker信息:', JSON.stringify(currentWorker, null, 2));
+                
+                // 使用找到的 Worker 名称，优先使用 id 字段
+                const realWorkerName = currentWorker ? (currentWorker.id || currentWorker.script || CLOUDFLARE_WORKER_NAME) : CLOUDFLARE_WORKER_NAME;
                 console.log(`🔍 调试 - 使用的Worker名字: ${realWorkerName}`);
                 console.log(`🌐 Worker地址: https://${realWorkerName}.${createResult.subdomain}.workers.dev`);
             }
