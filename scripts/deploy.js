@@ -26,56 +26,45 @@ async function deployToCloudflare() {
         console.log('📦 读取Worker脚本...');
         const workerScript = readFileSync(WORKER_SCRIPT_PATH, 'utf8');
         
-        console.log('🚀 部署到Cloudflare Worker...');
+        console.log('🚀 使用官方SDK部署到Cloudflare Worker...');
         
-        // 使用 multipart 方式部署 Worker 脚本
-        const formData = new FormData();
+        // 创建脚本文件对象
+        const scriptFile = new File([workerScript], 'worker.js', { 
+            type: 'application/javascript+module' 
+        });
         
-        // 添加脚本文件
-        const scriptBlob = new Blob([workerScript], { type: 'application/javascript+module' });
-        formData.append('worker.js', scriptBlob, 'worker.js');
-        
-        // 添加元数据
+        // 构建元数据
         const metadata = {
             main_module: 'worker.js',
-            bindings: [
-                {
-                    type: 'kv_namespace',
-                    name: 'kv',
-                    namespace_id: process.env.CLOUDFLARE_KV_ID
-                }
-            ]
+            bindings: []
         };
-        const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
-        formData.append('metadata', metadataBlob, 'metadata.json');
         
-        // 直接使用 fetch 进行部署
-        const deployResponse = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CLOUDFLARE_WORKER_NAME}`,
+        // 添加 KV 绑定（如果配置了 KV ID）
+        if (process.env.CLOUDFLARE_KV_ID) {
+            metadata.bindings.push({
+                type: 'kv_namespace',
+                name: 'kv',
+                namespace_id: process.env.CLOUDFLARE_KV_ID
+            });
+        }
+        
+        // 使用官方 SDK 部署
+        const deployResult = await cloudflare.workers.scripts.update(
+            CLOUDFLARE_WORKER_NAME,
             {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`
-                },
-                body: formData
+                account_id: CLOUDFLARE_ACCOUNT_ID,
+                metadata: metadata,
+                files: [scriptFile]
             }
         );
         
-        const deployResult = await deployResponse.json();
-        
-        console.log('📊 部署响应状态:', deployResponse.status);
-        
-        if (deployResult.success) {
-            console.log('✅ Worker部署成功！');
-            console.log('📋 部署信息:');
-            console.log(`   - Worker ID: ${deployResult.result.id}`);
-            console.log(`   - 部署时间: ${new Date(deployResult.result.modified_on).toLocaleString('zh-CN')}`);
-            console.log(`   - 启动时间: ${deployResult.result.startup_time_ms}ms`);
-            console.log(`   - 使用模式: ${deployResult.result.usage_model}`);
-        } else {
-            console.error('💥 Worker部署失败:', deployResult.errors);
-            throw new Error(`部署失败: ${JSON.stringify(deployResult.errors)}`);
-        }
+        console.log('✅ Worker部署成功！');
+        console.log('📋 部署信息:');
+        console.log(`   - Worker ID: ${deployResult.id}`);
+        console.log(`   - 部署时间: ${new Date(deployResult.modified_on).toLocaleString('zh-CN')}`);
+        console.log(`   - 启动时间: ${deployResult.startup_time_ms}ms`);
+        console.log(`   - 使用模式: ${deployResult.usage_model}`);
+        console.log(`   - 是否包含模块: ${deployResult.has_modules ? '是' : '否'}`);
         
         // 配置子域名
         await configureSubdomain();
@@ -139,7 +128,7 @@ async function configureSubdomain() {
                     {
                         account_id: CLOUDFLARE_ACCOUNT_ID,
                         enabled: true,
-                        previews_enabled: true
+                        previews_enabled: false
                     }
                 );
                 
@@ -167,7 +156,7 @@ async function configureSubdomain() {
                         {
                             account_id: CLOUDFLARE_ACCOUNT_ID,
                             enabled: true,
-                            previews_enabled: true
+                            previews_enabled: false
                         }
                     );
                     
