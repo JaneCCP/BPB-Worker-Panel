@@ -123,12 +123,11 @@ async function configureSubdomain() {
                 );
             }
             
-            // 只有在成功获取到真实 Worker 名称时才输出地址
+            // 获取worker 名称
             if (currentWorker && currentWorker.id) {
                 console.log(`🌐 Worker地址: https://${currentWorker.id}.${subdomainResult.subdomain}.workers.dev`);
-                console.log(`🌐 ${currentWorker.id}`);
             } else {
-                console.log('⚠️ 无法获取 Worker 真实名称，跳过地址输出');
+                console.log('⚠️ 无法获取 Worker 名称，跳过地址输出');
             }
         } else {
             console.log('📝 创建子域名...');
@@ -157,11 +156,11 @@ async function configureSubdomain() {
                     );
                 }
                 
-                // 只有在成功获取到真实 Worker 名称时才输出地址
+                // 获取worker 名称
                 if (currentWorker && currentWorker.id) {
                     console.log(`🌐 Worker地址: https://${currentWorker.id}.${createResult.subdomain}.workers.dev`);
                 } else {
-                    console.log('⚠️ 无法获取 Worker 真实名称，跳过地址输出');
+                    console.log('⚠️ 无法获取 Worker 名称，跳过地址输出');
                 }
             }
         }
