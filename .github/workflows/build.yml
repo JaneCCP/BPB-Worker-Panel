@@ -129,6 +129,12 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
+      - name: Configure Wrangler authentication
+        run: |
+          # 配置Wrangler使用API Token进行认证
+          mkdir -p ~/.wrangler
+          echo '{"api_token": "${{ secrets.CLOUDFLARE_API_TOKEN }}"}' > ~/.wrangler/config.json
+          
       - name: Update wrangler.jsonc with secrets
         run: |
           node -e "
@@ -136,19 +142,52 @@ jobs:
             let content = fs.readFileSync('wrangler.jsonc', 'utf8');
             content = content.replace(/__WORKER_NAME__/g, process.env.WORKER_NAME);
             content = content.replace(/__ACCOUNT_ID__/g, process.env.ACCOUNT_ID);
-            content = content.replace(/__ZONE_ID__/g, process.env.ZONE_ID);
             content = content.replace(/__KV_ID__/g, process.env.KV_ID);
             fs.writeFileSync('wrangler.jsonc', content);
+            console.log('✔ wrangler.jsonc配置更新完成');
+            console.log('Worker名称:', process.env.WORKER_NAME);
+            console.log('账户ID:', process.env.ACCOUNT_ID);
+            console.log('KV ID:', process.env.KV_ID);
           "
         env:
           WORKER_NAME: ${{ secrets.CLOUDFLARE_WORKER_NAME }}
           ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
 
-      - name: Deploy to Cloudflare Workers
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Validate deployment configuration
         run: |
-          # 使用最新wrangler命令格式部署
-          wrangler deploy --name ${{ secrets.CLOUDFLARE_WORKER_NAME }} --env production
+          # 验证配置文件格式
+          node -e "
+            try {
+              const fs = require('fs');
+              const content = fs.readFileSync('wrangler.jsonc', 'utf8');
+              const jsonWithoutComments = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*\$/gm, '');
+              const config = JSON.parse(jsonWithoutComments);
+              
+              // 验证必要字段
+              if (!config.name || !config.account_id || !config.compatibility_date) {
+                throw new Error('wrangler.jsonc缺少必要配置字段');
+              }
+              
+              // 验证KV配置
+              if (!config.kv_namespaces || config.kv_namespaces.length === 0) {
+                throw new Error('wrangler.jsonc缺少KV命名空间配置');
+              }
+              
+              console.log('✔ 部署配置验证通过');
+              console.log('Worker名称:', config.name);
+              console.log('账户ID:', config.account_id);
+              console.log('兼容性日期:', config.compatibility_date);
+              console.log('KV命名空间数量:', config.kv_namespaces.length);
+            } catch (error) {
+              console.error('✖ 配置验证失败:', error.message);
+              process.exit(1);
+            }
+          "
+
+      - name: Deploy to Cloudflare Workers
+        run: |
+          # 使用wrangler部署到Cloudflare Workers
+          echo "🚀 开始部署到Cloudflare Workers..."
+          wrangler deploy --env production
+          echo "✔ 部署完成！"
