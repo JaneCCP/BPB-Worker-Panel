@@ -43,7 +43,7 @@ jobs:
           name: build-artifacts
           path: |
             dist/
-            scripts/deploy-sdk.js
+            scripts/deploy.js
             package.json
             RELEASE.md
           retention-days: 1
@@ -91,7 +91,7 @@ jobs:
         run: npm install cloudflare@5.1.0
 
       - name: Deploy to Cloudflare Worker using SDK
-        run: node scripts/deploy-sdk.js
+        run: node scripts/deploy.js
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
