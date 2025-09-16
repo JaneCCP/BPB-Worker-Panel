@@ -13,7 +13,6 @@ id = "__KV_ID__"
 [env.production]
 name = "__WORKER_NAME__"
 account_id = "__ACCOUNT_ID__"
-zone_id = "__ZONE_ID__"
 
 [[env.production.kv_namespaces]]
 binding = "kv"
