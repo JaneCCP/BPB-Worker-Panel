@@ -105,16 +105,22 @@ async function configureSubdomain() {
             console.log(`   - 子域名: ${subdomainResult.subdomain}`);
             
             // 通过 SDK 获取 Worker 列表来找到真实的 Worker 名称
-            const workersList = await cloudflare.workers.scripts.list({
+            const workersResponse = await cloudflare.workers.scripts.list({
                 account_id: CLOUDFLARE_ACCOUNT_ID
             });
             
-            // 查找当前 Worker（使用环境变量名称查找）
-            const currentWorker = workersList.find(worker => 
-                worker.id === CLOUDFLARE_WORKER_NAME
-            );
+            // 检查返回的数据结构
+            const workersList = workersResponse.result || workersResponse;
             
-            // 使用找到的 Worker 的真实名称来构建地址
+            // 查找当前 Worker（使用环境变量名称查找）
+            let currentWorker = null;
+            if (Array.isArray(workersList)) {
+                currentWorker = workersList.find(worker => 
+                    worker.id === CLOUDFLARE_WORKER_NAME
+                );
+            }
+            
+            // 使用找到的 Worker 的真实名称来构建地址，如果找不到就直接使用环境变量
             const realWorkerName = currentWorker ? currentWorker.id : CLOUDFLARE_WORKER_NAME;
             console.log(`🌐 Worker地址: https://${realWorkerName}.${subdomainResult.subdomain}.workers.dev`);
         } else {
@@ -129,16 +135,22 @@ async function configureSubdomain() {
                 console.log(`   - 子域名: ${createResult.subdomain}`);
                 
                 // 通过 SDK 获取 Worker 列表来找到真实的 Worker 名称
-                const workersList = await cloudflare.workers.scripts.list({
+                const workersResponse = await cloudflare.workers.scripts.list({
                     account_id: CLOUDFLARE_ACCOUNT_ID
                 });
                 
-                // 查找当前 Worker（使用环境变量名称查找）
-                const currentWorker = workersList.find(worker => 
-                    worker.id === CLOUDFLARE_WORKER_NAME
-                );
+                // 检查返回的数据结构
+                const workersList = workersResponse.result || workersResponse;
                 
-                // 使用找到的 Worker 的真实名称来构建地址
+                // 查找当前 Worker（使用环境变量名称查找）
+                let currentWorker = null;
+                if (Array.isArray(workersList)) {
+                    currentWorker = workersList.find(worker => 
+                        worker.id === CLOUDFLARE_WORKER_NAME
+                    );
+                }
+                
+                // 使用找到的 Worker 的真实名称来构建地址，如果找不到就直接使用环境变量
                 const realWorkerName = currentWorker ? currentWorker.id : CLOUDFLARE_WORKER_NAME;
                 console.log(`🌐 Worker地址: https://${realWorkerName}.${createResult.subdomain}.workers.dev`);
             }
