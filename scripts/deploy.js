@@ -96,77 +96,96 @@ async function deployToCloudflare() {
 }
 
 async function configureSubdomain() {
-    console.log('🌐 配置子域名访问...');
+    console.log('🌐 配置Worker子域名访问...');
     try {
-        // 获取子域名状态
-        const subdomainResult = await cloudflare.workers.subdomains.get({
-            account_id: CLOUDFLARE_ACCOUNT_ID
-        });
-        
-        if (subdomainResult.subdomain) {
-            console.log('🎉 子域名已启用！');
-            console.log(`   - 子域名: ${subdomainResult.subdomain}`);
-            
-            // 通过 SDK 获取 Worker 列表来找到真实的 Worker 名称
-            const workersResponse = await cloudflare.workers.scripts.list({
+        // 首先获取账户级别的子域名信息
+        let accountSubdomain = null;
+        try {
+            const subdomainResult = await cloudflare.workers.subdomains.get({
                 account_id: CLOUDFLARE_ACCOUNT_ID
             });
-            
-            // 检查返回的数据结构
-            const workersList = workersResponse.result || workersResponse;
-            
-            // 查找当前 Worker（使用环境变量名称查找）
-            let currentWorker = null;
-            if (Array.isArray(workersList)) {
-                currentWorker = workersList.find(worker => 
-                    worker.id === CLOUDFLARE_WORKER_NAME
-                );
-            }
-            
-            // 获取worker 名称
-            if (currentWorker && currentWorker.id) {
-                console.log(`🌐 Worker地址: https://${currentWorker.id}.${subdomainResult.subdomain}.workers.dev`);
-            } else {
-                console.log('⚠️ 无法获取 Worker 名称，跳过地址输出');
-            }
-        } else {
-            console.log('📝 创建子域名...');
-            const createResult = await cloudflare.workers.subdomains.update({
-                account_id: CLOUDFLARE_ACCOUNT_ID,
-                subdomain: CLOUDFLARE_ACCOUNT_ID
-            });
-            
-            if (createResult.subdomain) {
-                console.log('✅ 子域名创建成功！');
-                console.log(`   - 子域名: ${createResult.subdomain}`);
-                
-                // 通过 SDK 获取 Worker 列表来找到真实的 Worker 名称
-                const workersResponse = await cloudflare.workers.scripts.list({
-                    account_id: CLOUDFLARE_ACCOUNT_ID
+            accountSubdomain = subdomainResult.subdomain;
+        } catch (error) {
+            console.log('📝 账户子域名未配置，尝试创建...');
+            try {
+                const createResult = await cloudflare.workers.subdomains.update({
+                    account_id: CLOUDFLARE_ACCOUNT_ID,
+                    subdomain: CLOUDFLARE_ACCOUNT_ID
                 });
-                
-                // 检查返回的数据结构
-                const workersList = workersResponse.result || workersResponse;
-                
-                // 查找当前 Worker（使用环境变量名称查找）
-                let currentWorker = null;
-                if (Array.isArray(workersList)) {
-                    currentWorker = workersList.find(worker => 
-                        worker.id === CLOUDFLARE_WORKER_NAME
-                    );
+                accountSubdomain = createResult.subdomain;
+                console.log(`✅ 账户子域名创建成功: ${accountSubdomain}`);
+            } catch (createError) {
+                console.log('⚠️ 无法创建账户子域名:', createError.message);
+            }
+        }
+        
+        // 检查当前 Worker 的子域名状态
+        try {
+            const workerSubdomainStatus = await cloudflare.workers.scripts.subdomain.get(
+                CLOUDFLARE_WORKER_NAME,
+                {
+                    account_id: CLOUDFLARE_ACCOUNT_ID
                 }
+            );
+            
+            console.log('📊 当前Worker子域名状态:');
+            console.log(`   - 子域名启用: ${workerSubdomainStatus.enabled ? '是' : '否'}`);
+            console.log(`   - 预览启用: ${workerSubdomainStatus.previews_enabled ? '是' : '否'}`);
+            
+            if (!workerSubdomainStatus.enabled) {
+                console.log('📝 启用Worker子域名...');
+                const enableResult = await cloudflare.workers.scripts.subdomain.create(
+                    CLOUDFLARE_WORKER_NAME,
+                    {
+                        account_id: CLOUDFLARE_ACCOUNT_ID,
+                        enabled: true,
+                        previews_enabled: true
+                    }
+                );
                 
-                // 获取worker 名称
-                if (currentWorker && currentWorker.id) {
-                    console.log(`🌐 Worker地址: https://${currentWorker.id}.${createResult.subdomain}.workers.dev`);
-                } else {
-                    console.log('⚠️ 无法获取 Worker 名称，跳过地址输出');
+                console.log('✅ Worker子域名已启用！');
+                console.log(`   - 子域名启用: ${enableResult.enabled ? '是' : '否'}`);
+                console.log(`   - 预览启用: ${enableResult.previews_enabled ? '是' : '否'}`);
+            }
+            
+            // 显示访问地址
+            if (accountSubdomain) {
+                console.log(`🌐 Worker访问地址: https://${CLOUDFLARE_WORKER_NAME}.${accountSubdomain}.workers.dev`);
+            } else {
+                console.log('⚠️ 无法确定完整的访问地址，请检查账户子域名配置');
+            }
+            
+        } catch (error) {
+            console.log('⚠️ Worker子域名配置失败:', error.message);
+            
+            // 如果获取失败，尝试直接启用
+            if (error.message.includes('not found') || error.status === 404) {
+                console.log('📝 尝试直接启用Worker子域名...');
+                try {
+                    const enableResult = await cloudflare.workers.scripts.subdomain.create(
+                        CLOUDFLARE_WORKER_NAME,
+                        {
+                            account_id: CLOUDFLARE_ACCOUNT_ID,
+                            enabled: true,
+                            previews_enabled: true
+                        }
+                    );
+                    
+                    console.log('✅ Worker子域名已启用！');
+                    console.log(`   - 子域名启用: ${enableResult.enabled ? '是' : '否'}`);
+                    console.log(`   - 预览启用: ${enableResult.previews_enabled ? '是' : '否'}`);
+                    
+                    if (accountSubdomain) {
+                        console.log(`🌐 Worker访问地址: https://${CLOUDFLARE_WORKER_NAME}.${accountSubdomain}.workers.dev`);
+                    }
+                } catch (enableError) {
+                    console.log('💥 启用Worker子域名失败:', enableError.message);
                 }
             }
         }
         
     } catch (error) {
-        console.log('⚠️ 子域名配置失败:', error.message);
+        console.log('⚠️ 子域名配置过程出错:', error.message);
         if (error.response) {
             console.log('📋 错误详情:', JSON.stringify(error.response.data, null, 2));
         }
