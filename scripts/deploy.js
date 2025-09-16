@@ -10,7 +10,8 @@ const __dirname = dirname(__filename);
 const {
     CLOUDFLARE_API_TOKEN,
     CLOUDFLARE_ACCOUNT_ID,
-    CLOUDFLARE_WORKER_NAME
+    CLOUDFLARE_WORKER_NAME,
+    CLOUDFLARE_KV_NAME  // KV 数据库名称，不再需要 CLOUDFLARE_KV_ID
 } = process.env;
 
 // 文件路径
@@ -20,6 +21,59 @@ const WORKER_SCRIPT_PATH = join(__dirname, '..', 'dist', 'worker.js');
 const cloudflare = new Cloudflare({
     apiToken: CLOUDFLARE_API_TOKEN,
 });
+
+async function ensureKVNamespace() {
+    // 如果没有配置 KV 数据库名称，跳过 KV 配置
+    if (!CLOUDFLARE_KV_NAME) {
+        console.log('⚠️ 未配置 CLOUDFLARE_KV_NAME，跳过 KV 命名空间配置');
+        return null;
+    }
+
+    console.log('🗄️ 检查 KV 命名空间配置...');
+    
+    try {
+        // 获取所有现有的 KV 命名空间
+        console.log(`📋 查找名为 "${CLOUDFLARE_KV_NAME}" 的 KV 命名空间...`);
+        
+        const namespaces = [];
+        for await (const namespace of cloudflare.kv.namespaces.list({
+            account_id: CLOUDFLARE_ACCOUNT_ID
+        })) {
+            namespaces.push(namespace);
+        }
+        
+        // 查找是否已存在同名的命名空间
+        const existingNamespace = namespaces.find(ns => ns.title === CLOUDFLARE_KV_NAME);
+        
+        if (existingNamespace) {
+            console.log('✅ 找到现有的 KV 命名空间！');
+            console.log(`   - 名称: ${existingNamespace.title}`);
+            console.log(`   - ID: ${existingNamespace.id}`);
+            return existingNamespace.id;
+        }
+        
+        // 如果不存在，创建新的命名空间
+        console.log('📝 创建新的 KV 命名空间...');
+        const newNamespace = await cloudflare.kv.namespaces.create({
+            account_id: CLOUDFLARE_ACCOUNT_ID,
+            title: CLOUDFLARE_KV_NAME
+        });
+        
+        console.log('✅ KV 命名空间创建成功！');
+        console.log(`   - 名称: ${newNamespace.title}`);
+        console.log(`   - ID: ${newNamespace.id}`);
+        
+        return newNamespace.id;
+        
+    } catch (error) {
+        console.error('💥 KV 命名空间配置失败:', error.message);
+        if (error.response) {
+            console.error('📋 错误详情:', JSON.stringify(error.response.data, null, 2));
+        }
+        // KV 配置失败不应该阻止 Worker 部署，返回 null 继续部署
+        return null;
+    }
+}
 
 async function deployToCloudflare() {
     try {
@@ -33,18 +87,21 @@ async function deployToCloudflare() {
             type: 'application/javascript+module' 
         });
         
+        // 获取或创建 KV 命名空间
+        const kvNamespaceId = await ensureKVNamespace();
+        
         // 构建元数据
         const metadata = {
             main_module: 'worker.js',
             bindings: []
         };
         
-        // 添加 KV 绑定（如果配置了 KV ID）
-        if (process.env.CLOUDFLARE_KV_ID) {
+        // 添加 KV 绑定（如果有 KV 命名空间）
+        if (kvNamespaceId) {
             metadata.bindings.push({
                 type: 'kv_namespace',
                 name: 'kv',
-                namespace_id: process.env.CLOUDFLARE_KV_ID
+                namespace_id: kvNamespaceId
             });
         }
         
@@ -182,34 +239,39 @@ async function configureSubdomain() {
 }
 
 async function configureKVBinding() {
-    console.log('🗄️ 检查KV存储绑定...');
+    console.log('🗄️ 验证KV存储绑定...');
+    
+    // 如果没有配置 KV 数据库名称，跳过验证
+    if (!CLOUDFLARE_KV_NAME) {
+        console.log('⚠️ 未配置 KV 数据库，跳过绑定验证');
+        return;
+    }
+    
     try {
-        // 获取当前 Worker 的详细信息
+        // 获取当前 Worker 的详细信息来验证绑定
         const workerDetails = await cloudflare.workers.scripts.get(CLOUDFLARE_WORKER_NAME, {
             account_id: CLOUDFLARE_ACCOUNT_ID
         });
         
         // 检查是否已有 KV 绑定
-        const hasKVBinding = workerDetails.bindings && 
-            workerDetails.bindings.some(binding => 
+        const kvBinding = workerDetails.bindings && 
+            workerDetails.bindings.find(binding => 
                 binding.type === 'kv_namespace' && 
-                binding.name === 'kv' && 
-                binding.namespace_id === process.env.CLOUDFLARE_KV_ID
+                binding.name === 'kv'
             );
         
-        if (hasKVBinding) {
-            console.log('✅ KV存储绑定已存在！');
+        if (kvBinding) {
+            console.log('✅ KV存储绑定验证成功！');
             console.log('📋 绑定信息:');
-            console.log(`   - 变量名: kv`);
-            console.log(`   - 命名空间ID: ${process.env.CLOUDFLARE_KV_ID}`);
+            console.log(`   - 变量名: ${kvBinding.name}`);
+            console.log(`   - 命名空间ID: ${kvBinding.namespace_id}`);
+            console.log(`   - 数据库名称: ${CLOUDFLARE_KV_NAME}`);
         } else {
-            console.log('📝 配置KV存储绑定...');
-            // 重新部署 Worker 以添加 KV 绑定（这部分已在主部署函数中处理）
-            console.log('✅ KV存储绑定已在部署时配置！');
+            console.log('⚠️ 未找到 KV 绑定，可能配置失败');
         }
         
     } catch (error) {
-        console.log('⚠️ KV绑定检查失败:', error.message);
+        console.log('⚠️ KV绑定验证失败:', error.message);
         if (error.response) {
             console.log('📋 错误详情:', JSON.stringify(error.response.data, null, 2));
         }
