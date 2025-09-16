@@ -1,4 +1,5 @@
-import { globalConfig, httpConfig } from "../helpers/init";
+import { globalConfig, httpConfig } from "#common/init";
+import { settings } from '#common/handlers'
 
 export function isDomain(address) {
     if (!address) return false;
@@ -18,7 +19,7 @@ export async function resolveDNS(domain, onlyIPv4 = false) {
         const ipv6 = onlyIPv4 ? [] : await fetchDNSRecords(dohURLs.ipv6, 28);
         return { ipv4, ipv6 };
     } catch (error) {
-        throw new Error(`解析DNS错误 ${domain}: ${error.message}`);
+        throw new Error(`解析 ${domain} 的 DNS 时出错: ${error.message}`);
     }
 }
 
@@ -32,21 +33,20 @@ async function fetchDNSRecords(url, recordType) {
             .filter(record => record.type === recordType)
             .map(record => record.data);
     } catch (error) {
-        throw new Error(`获取DNS记录失败 ${url}: ${error.message}`);
+        throw new Error(`从 ${url} 获取 DNS 记录失败: ${error.message}`);
     }
 }
 
 export async function getConfigAddresses(isFragment) {
-    const settings = globalThis.settings;
     const resolved = await resolveDNS(httpConfig.hostName, !settings.VLTRenableIPv6);
     const addrs = [
         ...settings.cleanIPs
     ];
-    
-    //  httpConfig.hostName,
-    //  'www.speedtest.net',
-    //  ...resolved.ipv4,
-    //  ...resolved.ipv6.map((ip) => `[${ip}]`),
+
+//     httpConfig.hostName,
+//     'www.speedtest.net',
+//     ...resolved.ipv4,
+//     ...resolved.ipv6.map((ip) => `[${ip}]`),    
 
     return isFragment ? addrs : [...addrs, ...settings.customCdnAddrs];
 }
@@ -67,7 +67,7 @@ export function generateRemark(index, port, address, cleanIPs, protocol, configT
     const type = configType ? ` ${configType}` : '';
 
     cleanIPs.includes(address)
-        ? addressType = '清洁IP'
+        ? addressType = '干净 IP'
         : addressType = isDomain(address) ? '域名' : isIPv4(address) ? 'IPv4' : isIPv6(address) ? 'IPv6' : '';
 
     return `💦 ${index} - ${protocol}${type} - ${addressType} : ${port}`;
@@ -93,7 +93,6 @@ export function getRandomString(lengthMin, lengthMax) {
 }
 
 export function generateWsPath(protocol) {
-    const settings = globalThis.settings;
     const config = {
         junk: getRandomString(8, 16),
         protocol: protocol,

@@ -47,6 +47,6 @@ window.copyToClipboard = function (elementId) {
         : `UUID=${uuid}\nTR_PASS=${password}\nSUB_PATH=${uriPath}`;
 
     navigator.clipboard.writeText(textToCopy)
-        .then(() => alert('✅ 已复制到剪贴板!'))
+        .then(() => alert('✅ 已复制到剪贴板！'))
         .catch(err => console.error('复制文本失败:', err));
 }

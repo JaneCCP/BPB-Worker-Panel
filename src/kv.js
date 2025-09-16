@@ -1,26 +1,29 @@
-import { getDomain, resolveDNS } from '../cores-configs/helpers';
-import { httpConfig } from '../helpers/init';
-import { fetchWarpConfigs } from '../protocols/warp';
+import { getDomain, resolveDNS } from '#configs/utils';
+import { httpConfig } from '#common/init';
+import { fetchWarpConfigs } from '#protocols/warp';
 
 export async function getDataset(request, env) {
-    let proxySettings, warpConfigs;
+    let settings, warpConfigs;
 
     try {
-        proxySettings = await env.kv.get("proxySettings", { type: 'json' });
+        settings = await env.kv.get("proxySettings", { type: 'json' });
         warpConfigs = await env.kv.get('warpConfigs', { type: 'json' });
+
+        if (!settings) {
+            settings = await updateDataset(request, env);
+            const configs = await fetchWarpConfigs(env);
+            warpConfigs = configs;
+        }
+
+        if (httpConfig.panelVersion !== settings.panelVersion) {
+            settings = await updateDataset(request, env);
+        }
+
+        return { settings, warpConfigs }
     } catch (error) {
         console.log(error);
-        throw new Error(`获取KV时发生错误 - ${error}`);
+        throw new Error(`获取 KV 时发生错误 - ${error.message}`);
     }
-
-    if (!proxySettings) {
-        proxySettings = await updateDataset(request, env);
-        const configs = await fetchWarpConfigs(env);
-        warpConfigs = configs;
-    }
-
-    if (httpConfig.panelVersion !== proxySettings.panelVersion) proxySettings = await updateDataset(request, env);
-    return { proxySettings, warpConfigs }
 }
 
 export async function updateDataset(request, env) {
@@ -32,10 +35,10 @@ export async function updateDataset(request, env) {
             currentSettings = await env.kv.get("proxySettings", { type: 'json' });
         } catch (error) {
             console.log(error);
-            throw new Error(`获取当前KV设置时发生错误 - ${error}`);
+            throw new Error(`获取当前 KV 设置时发生错误 - ${error}`);
         }
     }
-    
+
     const populateField = (field, defaultValue, callback) => {
         if (isReset) return defaultValue;
         if (!newSettings) return currentSettings?.[field] ?? defaultValue;
@@ -43,7 +46,7 @@ export async function updateDataset(request, env) {
         return typeof callback === 'function' ? callback(value) : value;
     }
 
-    const remoteDNS = populateField('remoteDNS', 'https://dns.google/dns-query');
+    const remoteDNS = populateField('remoteDNS', 'https://dns.google/resolve');
     const initDoh = async () => {
         const { host, isHostDomain } = getDomain(remoteDNS);
         const dohHost = {
@@ -62,7 +65,7 @@ export async function updateDataset(request, env) {
 
     const settings = {
         remoteDNS,
-        dohHost: await initDoh(), 
+        dohHost: await initDoh(),
         localDNS: populateField('localDNS', '114.114.114.114'),
         antiSanctionDNS: populateField('antiSanctionDNS', '8.8.4.4'),
         VLTRFakeDNS: populateField('VLTRFakeDNS', false),
@@ -86,9 +89,9 @@ export async function updateDataset(request, env) {
         fragmentIntervalMin: populateField('fragmentIntervalMin', 1),
         fragmentIntervalMax: populateField('fragmentIntervalMax', 1),
         fragmentPackets: populateField('fragmentPackets', 'tlshello'),
-        bypassLAN: populateField('bypassLAN', false),
+        bypassLAN: populateField('bypassLAN', true),
         bypassIran: populateField('bypassIran', false),
-        bypassChina: populateField('bypassChina', false),
+        bypassChina: populateField('bypassChina', true),
         bypassRussia: populateField('bypassRussia', false),
         bypassOpenAi: populateField('bypassOpenAi', false),
         bypassMicrosoft: populateField('bypassMicrosoft', false),
@@ -102,7 +105,7 @@ export async function updateDataset(request, env) {
         bypassAsus: populateField('bypassAsus', false),
         bypassHp: populateField('bypassHp', false),
         bypassLenovo: populateField('bypassLenovo', false),
-        blockAds: populateField('blockAds', false),
+        blockAds: populateField('blockAds', true),
         blockPorn: populateField('blockPorn', false),
         blockUDP443: populateField('blockUDP443', false),
         customBypassRules: populateField('customBypassRules', []),
@@ -138,7 +141,7 @@ export async function updateDataset(request, env) {
         await env.kv.put("proxySettings", JSON.stringify(settings));
     } catch (error) {
         console.log(error);
-        throw new Error(`更新KV时发生错误 - ${error}`);
+        throw new Error(`更新 KV 时发生错误 - ${error}`);
     }
 
     return settings;

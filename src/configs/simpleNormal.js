@@ -1,11 +1,11 @@
-import { globalConfig, httpConfig } from '../helpers/init';
-import { getConfigAddresses, generateRemark, randomUpperCase, base64EncodeUnicode, generateWsPath } from './helpers';
+import { globalConfig, httpConfig } from '#common/init';
+import { getConfigAddresses, generateRemark, randomUpperCase, base64EncodeUnicode, generateWsPath } from '#configs/utils';
+import { settings } from '#common/handlers';
 
-export async function getNormalConfigs(isFragment) {
-    const settings = globalThis.settings;
+export async function getSimpleNormalConfigs() {
     let VLConfs = '', TRConfs = '', chainProxy = '';
     let proxyIndex = 1;
-    const Addresses = await getConfigAddresses(isFragment);
+    const Addresses = await getConfigAddresses(false);
 
     const buildConfig = (protocol, addr, port, host, sni, remark) => {
         const isTLS = httpConfig.defaultHttpsPorts.includes(port);
@@ -14,7 +14,7 @@ export async function getNormalConfigs(isFragment) {
         const config = new URL(`${protocol}://config`);
         let pathProtocol = 'vl';
 
-        if (protocol === atob('dmxlc3M=')) {
+        if (protocol === 'vless') {
             config.username = globalConfig.userID;
             config.searchParams.append('encryption', 'none');
         } else {
@@ -42,10 +42,6 @@ export async function getNormalConfigs(isFragment) {
             config.searchParams.append('sni', sni);
             config.searchParams.append('fp', settings.fingerprint);
             config.searchParams.append('alpn', 'http/1.1');
-
-            if (httpConfig.client === 'hiddify-frag') {
-                config.searchParams.append('fragment', `${settings.fragmentLengthMin}-${settings.fragmentLengthMax},${settings.fragmentIntervalMin}-${settings.fragmentIntervalMax},hellotls`);
-            }
         }
 
         return config.href;
@@ -53,21 +49,21 @@ export async function getNormalConfigs(isFragment) {
 
     settings.ports.forEach(port => {
         Addresses.forEach(addr => {
-            const isCustomAddr = settings.customCdnAddrs.includes(addr) && !isFragment;
-            const configType = isCustomAddr ? 'C' : isFragment ? 'F' : '';
+            const isCustomAddr = settings.customCdnAddrs.includes(addr);
+            const configType = isCustomAddr ? 'C' : '';
             const sni = isCustomAddr ? settings.customCdnSni : randomUpperCase(httpConfig.hostName);
             const host = isCustomAddr ? settings.customCdnHost : httpConfig.hostName;
 
-            const VLRemark = generateRemark(proxyIndex, port, addr, settings.cleanIPs, atob('VkxFU1M='), configType);
-            const TRRemark = generateRemark(proxyIndex, port, addr, settings.cleanIPs, atob('VHJvamFu'), configType);
+            const VLRemark = generateRemark(proxyIndex, port, addr, settings.cleanIPs, 'VLESS', configType);
+            const TRRemark = generateRemark(proxyIndex, port, addr, settings.cleanIPs, 'Trojan', configType);
 
             if (settings.VLConfigs) {
-                const vlConfig = buildConfig(atob('dmxlc3M='), addr, port, host, sni, VLRemark);
+                const vlConfig = buildConfig('vless', addr, port, host, sni, VLRemark);
                 VLConfs += `${vlConfig}\n`;
             }
 
             if (settings.TRConfigs) {
-                const trConfig = buildConfig(atob('dHJvamFu'), addr, port, host, sni, TRRemark);
+                const trConfig = buildConfig('trojan', addr, port, host, sni, TRRemark);
                 TRConfs += `${trConfig}\n`;
             }
 
@@ -90,7 +86,7 @@ export async function getNormalConfigs(isFragment) {
     }
 
     const configs = btoa(VLConfs + TRConfs + chainProxy);
-    const hiddifyHash = base64EncodeUnicode(isFragment ? `💦 ${atob('QlBC')} 分片` : `💦 ${atob('QlBC')} 普通`);
+    const hiddifyHash = base64EncodeUnicode(`💦 普通订阅`);
 
     return new Response(configs, {
         status: 200,
@@ -100,41 +96,6 @@ export async function getNormalConfigs(isFragment) {
             'CDN-Cache-Control': 'no-store',
             'Profile-Title': `base64:${hiddifyHash}`,
             'DNS': settings.remoteDNS
-        }
-    });
-}
-
-export async function getHiddifyWarpConfigs(isPro) {
-    const settings = globalThis.settings;
-    let configs = '';
-    settings.warpEndpoints.forEach((endpoint, index) => {
-        const config = new URL('warp://config');
-        config.host = endpoint;
-        config.hash = `💦 ${index + 1} - Warp 伊朗`;
-
-        if (isPro) {
-            config.searchParams.append('ifpm', settings.hiddifyNoiseMode);
-            config.searchParams.append('ifp', `${settings.noiseCountMin}-${settings.noiseCountMax}`);
-            config.searchParams.append('ifps', `${settings.noiseSizeMin}-${settings.noiseSizeMax}`);
-            config.searchParams.append('ifpd', `${settings.noiseDelayMin}-${settings.noiseDelayMax}`);
-        }
-
-        const detour = new URL('warp://config');
-        detour.host = '162.159.192.1:2408';
-        detour.hash = `💦 ${index + 1} - WoW 全球`;
-
-        configs += `${config.href}&&detour=${detour.href}\n`;
-    });
-
-    const hiddifyHash = base64EncodeUnicode(`💦 ${atob('QlBC')} Warp${isPro ? ' 专业版' : ''}`);
-    return new Response(btoa(configs), {
-        status: 200,
-        headers: {
-            'Content-Type': 'text/plain;charset=utf-8',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'CDN-Cache-Control': 'no-store',
-            'Profile-Title': `base64:${hiddifyHash}`,
-            'DNS': '1.1.1.1'
         }
     });
 }

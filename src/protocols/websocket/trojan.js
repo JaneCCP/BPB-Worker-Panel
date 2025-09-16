@@ -1,6 +1,6 @@
 import { sha224 } from 'js-sha256';
-import { handleTCPOutBound, makeReadableWebSocketStream } from './common';
-import { globalConfig } from '../helpers/init';
+import { handleTCPOutBound, makeReadableWebSocketStream } from '#protocols/websocket/common';
+import { globalConfig } from '#common/init';
 
 export async function TrOverWSHandler(request) {
     const webSocketPair = new WebSocketPair();
@@ -42,7 +42,7 @@ export async function TrOverWSHandler(request) {
                     } = parseTRHeader(chunk);
 
                     address = addressRemote;
-                    portWithRandomLog = `${portRemote}--${Math.random().toString(36).substr(2, 4)} tcp`;
+                    portWithRandomLog = `${portRemote}--${Math.random()} tcp`;
 
                     if (hasError) {
                         throw new Error(message);
@@ -60,15 +60,15 @@ export async function TrOverWSHandler(request) {
                     );
                 },
                 close() {
-                    log(`可读WebSocket流已关闭`);
+                    log(`readableWebSocketStream 已关闭`);
                 },
                 abort(reason) {
-                    log(`可读WebSocket流已中止`, JSON.stringify(reason));
+                    log(`readableWebSocketStream 已中止`, JSON.stringify(reason));
                 },
             })
         )
         .catch((err) => {
-            log("可读WebSocket流 pipeTo 错误", err);
+            log("readableWebSocketStream pipeTo 错误", err);
         });
 
     return new Response(null, {
@@ -80,11 +80,11 @@ export async function TrOverWSHandler(request) {
 
 function parseTRHeader(buffer) {
     if (buffer.byteLength < 56) {
-            return {
-                hasError: true,
-                message: "无效的数据",
-            };
-        }
+        return {
+            hasError: true,
+            message: "无效数据",
+        };
+    }
 
     let crLfIndex = 56;
     if (new Uint8Array(buffer.slice(56, 57))[0] !== 0x0d || new Uint8Array(buffer.slice(57, 58))[0] !== 0x0a) {
@@ -98,7 +98,7 @@ function parseTRHeader(buffer) {
     if (password !== sha224(globalConfig.TrPass)) {
         return {
             hasError: true,
-            message: "无效的密码",
+            message: "无效密码",
         };
     }
 
@@ -106,7 +106,7 @@ function parseTRHeader(buffer) {
     if (socks5DataBuffer.byteLength < 6) {
         return {
             hasError: true,
-            message: "无效的SOCKS5请求数据",
+            message: "无效的 SOCKS5 请求数据",
         };
     }
 
@@ -115,7 +115,7 @@ function parseTRHeader(buffer) {
     if (cmd !== 1) {
         return {
             hasError: true,
-            message: "不支持的命令，仅允许TCP (CONNECT)",
+            message: "不支持的命令，仅允许 TCP (CONNECT)",
         };
     }
 
@@ -156,7 +156,7 @@ function parseTRHeader(buffer) {
     if (!address) {
         return {
             hasError: true,
-            message: `地址为空，地址类型为 ${atype}`,
+            message: `地址为空，地址类型为: ${atype}`,
         };
     }
 

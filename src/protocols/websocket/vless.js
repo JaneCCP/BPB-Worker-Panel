@@ -1,6 +1,6 @@
-import { isValidUUID } from '../helpers/helpers';
-import { globalConfig } from '../helpers/init';
-import { handleTCPOutBound, makeReadableWebSocketStream, WS_READY_STATE_OPEN } from './common';
+import { isValidUUID } from '#common/handlers';
+import { globalConfig } from '#common/init';
+import { handleTCPOutBound, makeReadableWebSocketStream, WS_READY_STATE_OPEN } from '#protocols/websocket/common';
 
 export async function VlOverWSHandler(request) {
     const webSocketPair = new WebSocketPair();
@@ -48,7 +48,7 @@ export async function VlOverWSHandler(request) {
             } = processVLHeader(chunk, globalConfig.userID);
             
             address = addressRemote;
-            portWithRandomLog = `${portRemote}--${Math.random().toString(36).substr(2, 4)} ${isUDP ? "udp " : "tcp "} `;
+            portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? "udp " : "tcp "} `;
             
             if (hasError) {
                 // controller.error(message);
@@ -70,10 +70,10 @@ export async function VlOverWSHandler(request) {
                     udpStreamWrite(rawClientData);
                     return;
                 } else {
-                // controller.error('UDP proxy only enable for DNS which is port 53');
-                throw new Error("UDP代理仅对DNS端口53启用"); // cf seems has bug, controller.error will not end stream
-                // return;
-            }
+                    // controller.error('UDP proxy only enable for DNS which is port 53');
+                    throw new Error("UDP代理仅支持DNS，端口为53"); // cf seems has bug, controller.error will not end stream
+                    // return;
+                }
             }
 
             handleTCPOutBound(
@@ -87,16 +87,16 @@ export async function VlOverWSHandler(request) {
             );
         },
         close() {
-            log(`可读WebSocket流已关闭`);
+            log(`readableWebSocketStream 已关闭`);
         },
         abort(reason) {
-            log(`可读WebSocket流已中止`, JSON.stringify(reason));
+            log(`readableWebSocketStream 已中止`, JSON.stringify(reason));
         },
     })
     )
         .catch((err) => {
-        log("可读WebSocket流 pipeTo 错误", err);
-    });
+            log("readableWebSocketStream pipeTo 错误", err);
+        });
 
     return new Response(null, {
         status: 101,
@@ -108,7 +108,7 @@ function processVLHeader(VLBuffer, userID) {
     if (VLBuffer.byteLength < 24) {
         return {
             hasError: true,
-            message: "无效的数据",
+            message: "无效数据",
         };
     }
     const version = new Uint8Array(VLBuffer.slice(0, 1));
@@ -121,7 +121,7 @@ function processVLHeader(VLBuffer, userID) {
     if (!isValidUser) {
         return {
             hasError: true,
-            message: "无效的用户",
+            message: "无效用户",
         };
     }
 
@@ -138,7 +138,7 @@ function processVLHeader(VLBuffer, userID) {
     } else {
         return {
             hasError: true,
-            message: `不支持的命令 ${command}，支持命令: 01-tcp, 02-udp, 03-mux`,
+            message: `不支持命令 ${command}，命令格式: 01-tcp,02-udp,03-mux`,
         };
     }
     const portIndex = 18 + optLength + 1;
@@ -187,7 +187,7 @@ function processVLHeader(VLBuffer, userID) {
     if (!addressValue) {
         return {
             hasError: true,
-            message: `地址值为空，地址类型为 ${addressType}`,
+            message: `地址值为空，地址类型为: ${addressType}`,
         };
     }
 
@@ -291,7 +291,7 @@ async function handleUDPOutBound(webSocket, VLResponseHeader, log) {
             })
         )
         .catch((error) => {
-            log("DNS UDP 发生错误: " + error);
+            log("DNS UDP 发生错误" + error);
         });
 
     const writer = transformStream.writable.getWriter();

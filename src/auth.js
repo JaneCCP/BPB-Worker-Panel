@@ -1,12 +1,12 @@
 import { SignJWT, jwtVerify } from 'jose';
-import { respond } from '../helpers/helpers';
-import { globalConfig } from '../helpers/init';
+import { respond } from '#common/handlers';
+import { globalConfig } from '#common/init';
 
 export async function generateJWTToken(request, env) {
-    if (request.method !== 'POST') return await respond(false, 405, '方法不被允许.');
+    if (request.method !== 'POST') return await respond(false, 405, '方法不被允许。');
     const password = await request.text();
     const savedPass = await env.kv.get('pwd');
-    if (password !== savedPass) return await respond(false, 401, '密码错误.');
+    if (password !== savedPass) return await respond(false, 401, '密码错误。');
     let secretKey = await env.kv.get('secretKey');
 
     if (!secretKey) {
@@ -21,7 +21,7 @@ export async function generateJWTToken(request, env) {
         .setExpirationTime('24h')
         .sign(secret);
 
-    return await respond(true, 200, '认证令牌生成成功', null, {
+    return await respond(true, 200, '成功生成认证令牌', null, {
         'Set-Cookie': `jwtToken=${jwtToken}; HttpOnly; Secure; Max-Age=${7 * 24 * 60 * 60}; Path=/; SameSite=Strict`,
         'Content-Type': 'text/plain',
     });
@@ -41,12 +41,12 @@ export async function Authenticate(request, env) {
         const token = cookie ? cookie[2] : null;
 
         if (!token) {
-            console.log('未授权: 令牌不可用!');
+            console.log('未授权：令牌不可用！');
             return false;
         }
 
         const { payload } = await jwtVerify(token, secret);
-        console.log(`认证成功, 用户ID: ${payload.userID}`);
+        console.log(`认证成功，用户ID: ${payload.userID}`);
         return true;
     } catch (error) {
         console.log(error);
@@ -55,7 +55,7 @@ export async function Authenticate(request, env) {
 }
 
 export async function logout() {
-    return await respond(true, 200, '登出成功!', null, {
+    return await respond(true, 200, '成功退出登录！', null, {
         'Set-Cookie': 'jwtToken=; Secure; SameSite=None; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
         'Content-Type': 'text/plain'
     });
@@ -64,11 +64,11 @@ export async function logout() {
 export async function resetPassword(request, env) {
     let auth = await Authenticate(request, env);
     const oldPwd = await env.kv.get('pwd');
-    if (oldPwd && !auth) return await respond(false, 401, '未授权.');
+    if (oldPwd && !auth) return await respond(false, 401, '未授权。');
     const newPwd = await request.text();
-    if (newPwd === oldPwd) return await respond(false, 400, '请输入新密码.');
+    if (newPwd === oldPwd) return await respond(false, 400, '请输入新密码。');
     await env.kv.put('pwd', newPwd);
-    return await respond(true, 200, '登录成功!', null, {
+    return await respond(true, 200, '成功登录！', null, {
         'Set-Cookie': 'jwtToken=; Path=/; Secure; SameSite=None; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
         'Content-Type': 'text/plain',
     });

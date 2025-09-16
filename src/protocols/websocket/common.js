@@ -1,6 +1,6 @@
 import { connect } from 'cloudflare:sockets';
-import { isIPv4, parseHostPort, resolveDNS } from '../cores-configs/helpers';
-import { wsConfig } from '../helpers/init';
+import { isIPv4, parseHostPort, resolveDNS } from '#configs/utils';
+import { wsConfig } from '#common/init';
 
 export const WS_READY_STATE_OPEN = 1;
 const WS_READY_STATE_CLOSING = 2;
@@ -36,7 +36,7 @@ export async function handleTCPOutBound(
         const parseIPs = (value) => value ? value.split(',').map(val => val.trim()).filter(Boolean) : undefined;
 
         if (proxyMode === 'proxyip') {
-            log(`直接连接失败，尝试使用代理IP连接 ${addressRemote}`);
+            log(`直连失败，尝试为 ${addressRemote} 使用代理IP`);
             try {
                 const proxyIPs = parseIPs(wsConfig.envProxyIPs) ||  wsConfig.defaultProxyIPs;
                 const ips = panelIPs.length ? panelIPs : proxyIPs;
@@ -45,11 +45,11 @@ export async function handleTCPOutBound(
                 tcpSocket = await connectAndWrite(host || addressRemote, port || portRemote);
             } catch (error) {
                 console.error('代理IP连接失败:', error);
-                webSocket.close(1011, 'Proxy IP connection failed: ' + error.message);
+                webSocket.close(1011, '代理IP连接失败: ' + error.message);
             }
 
         } else if (proxyMode === 'prefix') {
-            log(`直接连接失败，尝试为 ${addressRemote} 生成动态前缀`);
+            log(`直连失败，尝试为 ${addressRemote} 生成动态前缀`);
             try {
                 const prefixes = parseIPs(wsConfig.envPrefixes) || wsConfig.defaultPrefixes;
                 const ips = panelIPs.length ? panelIPs : prefixes;
@@ -58,12 +58,12 @@ export async function handleTCPOutBound(
                 tcpSocket = await connectAndWrite(dynamicProxyIP, portRemote);
             } catch (error) {
                 console.error('前缀连接失败:', error);
-                webSocket.close(1011, 'Prefix connection failed: ' + error.message);
+                webSocket.close(1011, '前缀连接失败: ' + error.message);
             }
         }
 
         tcpSocket.closed.catch(error => {
-            console.log('retry tcpSocket closed error', error);
+            console.log('重试 tcpSocket 关闭错误', error);
         }).finally(() => {
             safeCloseWebSocket(webSocket);
         });
@@ -92,7 +92,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
                     hasIncomingData = true;
                     // remoteChunkCount++;
                     if (webSocket.readyState !== WS_READY_STATE_OPEN) {
-                        controller.error("webSocket.readyState 不是打开状态，可能已关闭");
+                        controller.error("webSocket.readyState 未打开，可能已关闭");
                     }
                     if (VLHeader) {
                         webSocket.send(await new Blob([VLHeader, chunk]).arrayBuffer());
@@ -107,11 +107,11 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
                     }
                 },
                 close() {
-                    log(`远程连接!.readable 已关闭，是否有传入数据: ${hasIncomingData}`);
+                    log(`远程连接!.readable 已关闭，hasIncomingData 为 ${hasIncomingData}`);
                     // safeCloseWebSocket(webSocket); // no need server close websocket frist for some case will casue HTTP ERR_CONTENT_LENGTH_MISMATCH issue, client will send close event anyway.
                 },
                 abort(reason) {
-                    console.error(`remoteConnection!.readable abort`, reason);
+                    console.error(`远程连接!.readable 中止`, reason);
                 },
             })
         )
@@ -124,7 +124,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
     // 1. Socket.closed will have error
     // 2. Socket.readable will be close without any data coming
     if (hasIncomingData === false && retry) {
-        log(`retry`);
+        log(`重试`);
         retry();
     }
 }
@@ -176,7 +176,7 @@ export function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, lo
             if (readableStreamCancel) {
                 return;
             }
-            log(`可读流被取消，原因: ${reason}`);
+            log(`ReadableStream 已取消，原因: ${reason}`);
             readableStreamCancel = true;
             safeCloseWebSocket(webSocketServer);
         },
@@ -206,7 +206,7 @@ export function safeCloseWebSocket(socket) {
             socket.close();
         }
     } catch (error) {
-        console.error('安全关闭WebSocket错误', error);
+        console.error('safeCloseWebSocket 错误', error);
     }
 }
 
@@ -217,7 +217,7 @@ async function getDynamicProxyIP(address, prefix) {
         if (ipv4.length) {
             finalAddress = ipv4[0];
         } else {
-            throw new Error('无法在DNS记录中找到IPv4地址');
+            throw new Error('无法在DNS记录中找到IPv4');
         }
     }
 
@@ -227,7 +227,7 @@ async function getDynamicProxyIP(address, prefix) {
 function convertToNAT64IPv6(ipv4Address, prefix) {
     const parts = ipv4Address.split('.');
     if (parts.length !== 4) {
-        throw new Error('Invalid IPv4 address');
+        throw new Error('无效的IPv4地址');
     }
 
     const hex = parts.map(part => {

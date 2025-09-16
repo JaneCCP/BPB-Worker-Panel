@@ -278,25 +278,11 @@ button.reverse {
 
 .form-control.apply {
     flex-wrap: wrap;
-    flex-direction: column;
+    flex-direction: row;
     padding: var(--container-padding) 0;
-    gap: 12px;
+    gap: 8px;
     justify-content: center;
-    align-items: center;
     flex: unset;
-}
-
-.apply-settings-row {
-    display: flex;
-    justify-content: center;
-    width: 100%;
-}
-
-.panel-settings-row {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    width: 100%;
 }
 
 button.apply-settings {
@@ -322,6 +308,10 @@ button.panel-settings {
         'wght' 400,
         'GRAD' 0,
         'opsz' 24
+}
+
+a .material-symbols-rounded {
+    color: var(--secondary-color);
 }
 
 details:not(:last-of-type) {
@@ -696,7 +686,7 @@ table button:active {
 .floating-button {
     position: fixed;
     bottom: 20px;
-    right: 20px;
+    left: 20px;
     background-color: var(--color);
     color: white;
     border: none;

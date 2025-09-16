@@ -1,15 +1,16 @@
-import { Authenticate, generateJWTToken, resetPassword } from "../authentication/auth";
-import { getClashNormalConfig, getClashWarpConfig } from "../cores-configs/clash";
-import { extractWireguardParams } from "../cores-configs/helpers";
-import { getHiddifyWarpConfigs, getNormalConfigs } from "../cores-configs/normalConfigs";
-import { getSingBoxCustomConfig, getSingBoxWarpConfig } from "../cores-configs/sing-box";
-import { getXrayCustomConfigs, getXrayWarpConfigs } from "../cores-configs/xray";
-import { getDataset, updateDataset } from "../kv/handlers";
+import { Authenticate, generateJWTToken, resetPassword } from "#auth";
+import { getClashNormalConfig, getClashWarpConfig } from "#configs/clash";
+import { extractWireguardParams } from "#configs/utils";
+import { getSingBoxCustomConfig, getSingBoxWarpConfig } from "#configs/sing-box";
+import { getXrayCustomConfigs, getXrayWarpConfigs } from "#configs/xray";
+import { getSimpleNormalConfigs } from "#configs/simpleNormal";
+import { getDataset, updateDataset } from "#kv";
 import JSZip from "jszip";
-import { fetchWarpConfigs } from "../protocols/warp";
-import { globalConfig, httpConfig, wsConfig } from "./init";
-import { VlOverWSHandler } from "../protocols/vless";
-import { TrOverWSHandler } from "../protocols/trojan";
+import { fetchWarpConfigs } from "#protocols/warp";
+import { globalConfig, httpConfig, wsConfig } from "#common/init";
+import { VlOverWSHandler } from "#protocols/websocket/vless";
+import { TrOverWSHandler } from "#protocols/websocket/trojan";
+export let settings = {}
 
 export async function handleWebsocket(request) {
     const encodedPathConfig = globalConfig.pathName.replace("/", "") || '';
@@ -37,7 +38,6 @@ export async function handleWebsocket(request) {
 }
 
 export async function handlePanel(request, env) {
-
     switch (globalConfig.pathName) {
         case '/panel':
             return await renderPanel(request, env);
@@ -76,17 +76,17 @@ export async function handleLogin(request, env) {
 }
 
 export async function handleSubscriptions(request, env) {
-    const { proxySettings } = await getDataset(request, env);
-    globalThis.settings = proxySettings;
+    const dataset = await getDataset(request, env);
+    settings = dataset.settings;
     const { client, subPath } = httpConfig;
+    const path = decodeURIComponent(globalConfig.pathName);
 
-    switch (decodeURIComponent(globalConfig.pathName)) {
+    switch (path) {
+        case `/sub/simple-normal/${subPath}`:
+            return await getSimpleNormalConfigs();
         case `/sub/normal/${subPath}`:
-            return await getNormalConfigs(false);
-
-        case `/sub/full-normal/${subPath}`:
             switch (client) {
-                case 'sfa':
+                case 'sing-box':
                     return await getSingBoxCustomConfig(env, false);
                 case 'clash':
                     return await getClashNormalConfig(env);
@@ -98,22 +98,20 @@ export async function handleSubscriptions(request, env) {
 
         case `/sub/fragment/${subPath}`:
             switch (client) {
-                case 'sfa':
+                case 'sing-box':
                     return await getSingBoxCustomConfig(env, true);
-                case 'hiddify-frag':
-                    return await getNormalConfigs(true);
-                default:
+                case 'xray':
                     return await getXrayCustomConfigs(env, true);
+                default:
+                    break;
             }
 
         case `/sub/warp/${subPath}`:
             switch (client) {
                 case 'clash':
                     return await getClashWarpConfig(request, env, false);
-                case 'singbox':
+                case 'sing-box':
                     return await getSingBoxWarpConfig(request, env);
-                case 'hiddify':
-                    return await getHiddifyWarpConfigs(false);
                 case 'xray':
                     return await getXrayWarpConfigs(request, env, false);
                 default:
@@ -122,12 +120,10 @@ export async function handleSubscriptions(request, env) {
 
         case `/sub/warp-pro/${subPath}`:
             switch (client) {
-                case 'clash-pro':
+                case 'clash':
                     return await getClashWarpConfig(request, env, true);
-                case 'hiddify-pro':
-                    return await getHiddifyWarpConfigs(true);
                 case 'xray-knocker':
-                case 'xray-pro':
+                case 'xray':
                     return await getXrayWarpConfigs(request, env, true);
                 default:
                     break;
@@ -141,41 +137,37 @@ export async function handleSubscriptions(request, env) {
 async function updateSettings(request, env) {
     if (request.method === 'POST') {
         const auth = await Authenticate(request, env);
-        if (!auth) return await respond(false, 401, '未授权或会话已过期。');
+        if (!auth) return await respond(false, 401, '未授权或会话已过期');
         const proxySettings = await updateDataset(request, env);
         return await respond(true, 200, null, proxySettings);
     }
 
-    return await respond(false, 405, '方法不被允许。');
+    return await respond(false, 405, '方法不被允许');
 }
 
 async function resetSettings(request, env) {
     if (request.method === 'POST') {
         const auth = await Authenticate(request, env);
-        if (!auth) return await respond(false, 401, '未授权或会话已过期。');
+        if (!auth) return await respond(false, 401, '未授权或会话已过期');
         const proxySettings = await updateDataset(request, env);
         return await respond(true, 200, null, proxySettings);
     }
 
-    return await respond(false, 405, '方法不被允许！');
+    return await respond(false, 405, '方法不被允许');
 }
 
 async function getSettings(request, env) {
-    try {
-        const isPassSet = await env.kv.get('pwd') ? true : false;
-        const auth = await Authenticate(request, env);
-        if (!auth) return await respond(false, 401, '未授权或会话已过期。', { isPassSet });
-        const { proxySettings } = await getDataset(request, env);
-        const settings = {
-            proxySettings,
-            isPassSet,
-            subPath: httpConfig.subPath
-        };
+    const isPassSet = await env.kv.get('pwd') ? true : false;
+    const auth = await Authenticate(request, env);
+    if (!auth) return await respond(false, 401, '未授权或会话已过期', { isPassSet });
+    const dataset = await getDataset(request, env);
+    const data = {
+        proxySettings: dataset.settings,
+        isPassSet,
+        subPath: httpConfig.subPath
+    };
 
-        return await respond(true, 200, null, settings);
-    } catch (error) {
-        throw new Error(error);
-    }
+    return await respond(true, 200, null, data);
 }
 
 export async function fallback(request) {
@@ -199,19 +191,19 @@ async function getMyIP(request) {
         const geoLocation = await response.json();
         return await respond(true, 200, null, geoLocation);
     } catch (error) {
-        console.error('Error fetching IP address:', error);
-        return await respond(false, 500, `获取IP地址错误: ${error}`)
+        console.error('获取IP地址时出错:', error);
+        return await respond(false, 500, `获取IP地址时出错: ${error}`)
     }
 }
 
 async function getWarpConfigs(request, env) {
     const isPro = httpConfig.client === 'amnezia';
     const auth = await Authenticate(request, env);
-    if (!auth) return new Response('未授权或会话已过期。', { status: 401 });
-    const { warpConfigs, proxySettings } = await getDataset(request, env);
+    if (!auth) return new Response('未授权或会话已过期', { status: 401 });
+    const { warpConfigs, settings } = await getDataset(request, env);
     const warpConfig = extractWireguardParams(warpConfigs, false);
     const { warpIPv6, publicKey, privateKey } = warpConfig;
-    const { warpEndpoints, amneziaNoiseCount, amneziaNoiseSizeMin, amneziaNoiseSizeMax } = proxySettings;
+    const { warpEndpoints, amneziaNoiseCount, amneziaNoiseSizeMin, amneziaNoiseSizeMax } = settings;
     const zip = new JSZip();
     const trimLines = (string) => string.split("\n").map(line => line.trim()).join("\n");
     const amneziaNoise = isPro
@@ -233,7 +225,7 @@ async function getWarpConfigs(request, env) {
                 `[Interface]
                 PrivateKey = ${privateKey}
                 Address = 172.16.0.2/32, ${warpIPv6}
-                DNS = 1.1.1.1, 1.0.0.1
+                DNS = 8.8.8.8, 8.8.4.4
                 MTU = 1280
                 ${amneziaNoise}
                 [Peer]
@@ -253,7 +245,7 @@ async function getWarpConfigs(request, env) {
             },
         });
     } catch (error) {
-        return new Response(`生成ZIP文件错误: ${error}`, { status: 500 });
+        return new Response(`生成ZIP文件时出错: ${error}`, { status: 500 });
     }
 }
 
@@ -300,17 +292,17 @@ export async function renderSecrets() {
 async function updateWarpConfigs(request, env) {
     if (request.method === 'POST') {
         const auth = await Authenticate(request, env);
-        if (!auth) return await respond(false, 401, 'Unauthorized.');
+        if (!auth) return await respond(false, 401, '未授权');
         try {
             await fetchWarpConfigs(env);
             return await respond(true, 200, 'Warp配置更新成功！');
         } catch (error) {
             console.log(error);
-            return await respond(false, 500, `更新Warp配置时发生错误: ${error}`);
+            return await respond(false, 500, `更新Warp配置时出错: ${error}`);
         }
     }
 
-    return await respond(false, 405, '方法不被允许。');
+    return await respond(false, 405, '方法不被允许');
 }
 
 export async function respond(success, status, message, body, customHeaders) {

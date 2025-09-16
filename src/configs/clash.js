@@ -1,9 +1,9 @@
-import { getConfigAddresses, extractWireguardParams, generateRemark, randomUpperCase, isIPv6, isIPv4, isDomain, getDomain, generateWsPath, parseHostPort } from './helpers';
-import { getDataset } from '../kv/handlers';
-import { globalConfig, httpConfig } from '../helpers/init';
+import { getConfigAddresses, extractWireguardParams, generateRemark, randomUpperCase, isIPv6, isIPv4, isDomain, getDomain, generateWsPath, parseHostPort } from '#configs/utils';
+import { getDataset } from '#kv';
+import { globalConfig, httpConfig } from '#common/init';
+import { settings } from '#common/handlers'
 
 async function buildClashDNS(isChain, isWarp) {
-    const settings = globalThis.settings;
     const finalLocalDNS = settings.localDNS === 'localhost' ? 'system' : `${settings.localDNS}#DIRECT`;
     const isIPv6 = (settings.VLTRenableIPv6 && !isWarp) || (settings.warpEnableIPv6 && isWarp);
     const dnsObject = {
@@ -12,11 +12,11 @@ async function buildClashDNS(isChain, isWarp) {
         "ipv6": isIPv6,
         "respect-rules": true,
         "use-system-hosts": false,
-        "nameserver": [`${isWarp ? '1.1.1.1' : settings.remoteDNS}#✅ 全局节点`],
+        "nameserver": [`${isWarp ? '1.1.1.1' : settings.remoteDNS}#✅ 选择器`],
         "proxy-server-nameserver": [finalLocalDNS],
         "nameserver-policy": {
             "raw.githubusercontent.com": finalLocalDNS,
-            "time.apple.com": finalLocalDNS
+            "time.cloudflare.com": finalLocalDNS
         }
     };
 
@@ -43,7 +43,7 @@ async function buildClashDNS(isChain, isWarp) {
 
     settings.customBlockRules.filter(isDomain).forEach(domain => {
         if (!dnsObject["hosts"]) dnsObject["hosts"] = {};
-        dnsObject["hosts"][`+.${domain}`] = "127.0.0.1";
+        dnsObject["hosts"][`+.${domain}`] = "rcode://refused";
     });
 
     settings.customBypassRules.filter(isDomain).forEach(domain => {
@@ -61,7 +61,7 @@ async function buildClashDNS(isChain, isWarp) {
                 dnsObject["nameserver-policy"][`rule-set:${ruleProvider.geosite}`] = dns;
             } else {
                 if (!dnsObject["hosts"]) dnsObject["hosts"] = {};
-                dnsObject["hosts"][`rule-set:${ruleProvider.geosite}`] = "127.0.0.1";
+                dnsObject["hosts"][`rule-set:${ruleProvider.geosite}`] = "rcode://refused";
             }
         });
 
@@ -76,7 +76,6 @@ async function buildClashDNS(isChain, isWarp) {
 }
 
 function buildClashRoutingRules(isWarp) {
-    const settings = globalThis.settings;
     const routingRules = getRoutingRules();
 
     settings.customBlockRules.forEach(value => {
@@ -166,12 +165,11 @@ function buildClashRoutingRules(isWarp) {
         if (geoip.length) addRoutingRule(null, geoip, null, null, type);
     }
 
-    rules.push("MATCH,✅ 全局节点");
+    rules.push("MATCH,✅ 选择器");
     return { rules, ruleProviders };
 }
 
 function buildClashVLOutbound(remark, address, port, host, sni, allowInsecure) {
-    const settings = globalThis.settings;
     const tls = httpConfig.defaultHttpsPorts.includes(port) ? true : false;
     const addr = isIPv6(address) ? address.replace(/\[|\]/g, '') : address;
     const ipVersion = settings.VLTRenableIPv6 ? "dual" : "ipv4";
@@ -210,7 +208,6 @@ function buildClashVLOutbound(remark, address, port, host, sni, allowInsecure) {
 }
 
 function buildClashTROutbound(remark, address, port, host, sni, allowInsecure) {
-    const settings = globalThis.settings;
     const addr = isIPv6(address) ? address.replace(/\[|\]/g, '') : address;
     const ipVersion = settings.VLTRenableIPv6 ? "dual" : "ipv4";
     const fingerprint = settings.fingerprint === "randomized" ? "random" : settings.fingerprint;
@@ -240,7 +237,6 @@ function buildClashTROutbound(remark, address, port, host, sni, allowInsecure) {
 }
 
 function buildClashWarpOutbound(warpConfigs, remark, endpoint, chain, isPro) {
-    const settings = globalThis.settings;
     const { host, port } = parseHostPort(endpoint);
     const ipVersion = settings.warpEnableIPv6 ? "dual" : "ipv4";
 
@@ -277,7 +273,7 @@ function buildClashWarpOutbound(warpConfigs, remark, endpoint, chain, isPro) {
 }
 
 function buildClashChainOutbound() {
-    const { outProxyParams } = globalThis.settings;
+    const { outProxyParams } = settings;
     const { protocol } = outProxyParams;
 
     if (["socks", "http"].includes(protocol)) {
@@ -296,7 +292,7 @@ function buildClashChainOutbound() {
 
     const { server, port, uuid, flow, security, type, sni, fp, alpn, pbk, sid, headerType, host, path, serviceName } = outProxyParams;
     const chainOutbound = {
-        "name": "💦 链式代理 最佳延迟 💥",
+        "name": "💦 Chain Best Ping 💥",
         "type": atob('dmxlc3M='),
         "server": server,
         "port": +port,
@@ -360,7 +356,6 @@ function buildClashChainOutbound() {
 }
 
 async function buildClashConfig(selectorTags, urlTestTags, secondUrlTestTags, isChain, isWarp, isPro) {
-    const settings = globalThis.settings;
     const config = structuredClone(clashConfigTemp);
     config['dns'] = await buildClashDNS(isChain, isWarp);
 
@@ -369,7 +364,7 @@ async function buildClashConfig(selectorTags, urlTestTags, secondUrlTestTags, is
     config['rule-providers'] = ruleProviders;
 
     const selector = {
-        "name": "✅ 全局节点",
+        "name": "✅ 选择器",
         "type": "select",
         "proxies": selectorTags
     };
@@ -397,7 +392,6 @@ async function buildClashConfig(selectorTags, urlTestTags, secondUrlTestTags, is
 
 export async function getClashWarpConfig(request, env, isPro) {
     const { warpConfigs } = await getDataset(request, env);
-    const settings = globalThis.settings;
     const warpTags = [], wowTags = [];
     const outbounds = {
         proxies: [],
@@ -405,10 +399,10 @@ export async function getClashWarpConfig(request, env, isPro) {
     }
 
     settings.warpEndpoints.forEach((endpoint, index) => {
-        const warpTag = `💦 ${index + 1} - Warp ${isPro ? 'Pro ' : ''}伊朗`;
+        const warpTag = `💦 ${index + 1} - Warp ${isPro ? 'Pro ' : ''}🇮🇷`;
         warpTags.push(warpTag);
 
-        const wowTag = `💦 ${index + 1} - WoW ${isPro ? 'Pro ' : ''}全球`;
+        const wowTag = `💦 ${index + 1} - WoW ${isPro ? 'Pro ' : ''}🌍`;
         wowTags.push(wowTag);
 
         const warpOutbound = buildClashWarpOutbound(warpConfigs, warpTag, endpoint, '', isPro);
@@ -440,14 +434,13 @@ export async function getClashWarpConfig(request, env, isPro) {
 }
 
 export async function getClashNormalConfig(env) {
-    const settings = globalThis.settings;
     let chainProxy;
-    
+
     if (settings.outProxy) {
         try {
             chainProxy = buildClashChainOutbound();
         } catch (error) {
-            console.log('An error occured while parsing chain proxy: ', error);
+            console.log('解析链式代理时发生错误: ', error);
             chainProxy = undefined;
             const proxySettings = await env.kv.get("proxySettings", { type: 'json' });
             await env.kv.put("proxySettings", JSON.stringify({
@@ -599,7 +592,6 @@ const clashConfigTemp = {
 };
 
 function getRoutingRules() {
-    const settings = globalThis.settings;
     const finalLocalDNS = settings.localDNS === 'localhost' ? 'system' : `${settings.localDNS}#DIRECT`;
     return [
         {

@@ -5,10 +5,14 @@ permissions:
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 */1 * * *'
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch'
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
 
     steps:
@@ -33,6 +37,17 @@ jobs:
       - name: Build project
         run: npm run build
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            scripts/deploy.js
+            package.json
+            RELEASE.md
+          retention-days: 1
+
       - name: Read release note
         id: read_release
         shell: bash
@@ -56,55 +71,26 @@ jobs:
           promote: ${{ github.ref == 'refs/heads/main' }}
           body: ${{ steps.read_release.outputs.RELEASE_BODY }}
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts
-          path: dist/
-          retention-days: 1
-
   deploy:
     needs: build
-    runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
-    
-    steps:
-      - name: Check out the code
-        uses: actions/checkout@v4
+    runs-on: ubuntu-latest
 
+    steps:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts
-          path: dist/
 
-      - name: Set up Node.js
+      - name: Set up Node.js for deployment
         uses: actions/setup-node@v4
         with:
           node-version: "latest"
 
-      - name: Install Wrangler
-        run: npm install -g wrangler
-
-      - name: Update wrangler.toml with secrets
-        run: |
-          node -e "
-            const fs = require('fs');
-            let content = fs.readFileSync('wrangler.toml', 'utf8');
-            content = content.replace(/__WORKER_NAME__/g, process.env.WORKER_NAME);
-            content = content.replace(/__ACCOUNT_ID__/g, process.env.ACCOUNT_ID);
-            content = content.replace(/__ZONE_ID__/g, process.env.ZONE_ID);
-            content = content.replace(/__KV_ID__/g, process.env.KV_ID);
-            fs.writeFileSync('wrangler.toml', content);
-          "
-        env:
-          WORKER_NAME: ${{ secrets.CLOUDFLARE_WORKER_NAME }}
-          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
-
-      - name: Deploy to Cloudflare Workers
+      - name: Deploy to Cloudflare Worker using API
+        run: node scripts/deploy.js
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          wrangler deploy --env production
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_WORKER_NAME: ${{ secrets.CLOUDFLARE_WORKER_NAME }}
+          CLOUDFLARE_KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
