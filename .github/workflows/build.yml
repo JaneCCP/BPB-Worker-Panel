@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Release & Deploy
 
 permissions:
   contents: write
@@ -73,9 +73,7 @@ jobs:
 
   deploy:
     needs: build
-    if: |
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
