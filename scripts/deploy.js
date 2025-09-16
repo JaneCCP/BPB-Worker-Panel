@@ -147,18 +147,22 @@ async function configureSubdomain() {
 async function enableWorkersLogs() {
     console.log('📊 正在启用Workers日志...');
     try {
-        // 根据 settings.ts 接口使用正确的配置结构
+        // 根据 settings.ts 接口使用官方标准的完整配置结构
         const logResult = await cloudflare.workers.scripts.settings.edit(
             CLOUDFLARE_WORKER_NAME,
             {
                 account_id: CLOUDFLARE_ACCOUNT_ID,
+                logpush: false,
                 observability: {
+                    enabled: true,
+                    head_sampling_rate: 1,
                     logs: {
                         enabled: true,
-                        head_sampling_rate: 1,
-                        invocation_logs: true
+                        invocation_logs: true,
+                        head_sampling_rate: 1
                     }
-                }
+                },
+                tail_consumers: []
             }
         );
         
