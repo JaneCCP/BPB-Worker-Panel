@@ -109,18 +109,13 @@ async function configureSubdomain() {
                 account_id: CLOUDFLARE_ACCOUNT_ID
             });
             
-            // 查找当前 Worker
+            // 查找当前 Worker（使用环境变量名称查找）
             const currentWorker = workersList.find(worker => 
-                worker.id === CLOUDFLARE_WORKER_NAME || 
-                worker.script === CLOUDFLARE_WORKER_NAME
+                worker.id === CLOUDFLARE_WORKER_NAME
             );
             
-            // 调试：查看找到的 Worker 信息
-            console.log('🔍 调试 - 找到的Worker信息:', JSON.stringify(currentWorker, null, 2));
-            
-            // 使用找到的 Worker 名称，优先使用 id 字段
-            const realWorkerName = currentWorker ? (currentWorker.id || currentWorker.script || CLOUDFLARE_WORKER_NAME) : CLOUDFLARE_WORKER_NAME;
-            console.log(`🔍 调试 - 使用的Worker名字: ${realWorkerName}`);
+            // 使用找到的 Worker 的真实名称来构建地址
+            const realWorkerName = currentWorker ? currentWorker.id : CLOUDFLARE_WORKER_NAME;
             console.log(`🌐 Worker地址: https://${realWorkerName}.${subdomainResult.subdomain}.workers.dev`);
         } else {
             console.log('📝 创建子域名...');
@@ -138,18 +133,13 @@ async function configureSubdomain() {
                     account_id: CLOUDFLARE_ACCOUNT_ID
                 });
                 
-                // 查找当前 Worker
+                // 查找当前 Worker（使用环境变量名称查找）
                 const currentWorker = workersList.find(worker => 
-                    worker.id === CLOUDFLARE_WORKER_NAME || 
-                    worker.script === CLOUDFLARE_WORKER_NAME
+                    worker.id === CLOUDFLARE_WORKER_NAME
                 );
                 
-                // 调试：查看找到的 Worker 信息
-                console.log('🔍 调试 - 找到的Worker信息:', JSON.stringify(currentWorker, null, 2));
-                
-                // 使用找到的 Worker 名称，优先使用 id 字段
-                const realWorkerName = currentWorker ? (currentWorker.id || currentWorker.script || CLOUDFLARE_WORKER_NAME) : CLOUDFLARE_WORKER_NAME;
-                console.log(`🔍 调试 - 使用的Worker名字: ${realWorkerName}`);
+                // 使用找到的 Worker 的真实名称来构建地址
+                const realWorkerName = currentWorker ? currentWorker.id : CLOUDFLARE_WORKER_NAME;
                 console.log(`🌐 Worker地址: https://${realWorkerName}.${createResult.subdomain}.workers.dev`);
             }
         }
