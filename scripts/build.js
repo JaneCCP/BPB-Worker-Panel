@@ -151,7 +151,7 @@ async function buildWorker() {
     }
 
     const buildTimestamp = new Date().toISOString();
-    const buildInfo = `// Build: ${buildTimestamp}\n`;
+    const buildInfo = `// 构建时间: ${buildTimestamp}\n`;
     const worker = `${buildInfo}// @ts-nocheck\n${finalCode}`;
     mkdirSync(DIST_PATH, { recursive: true });
     writeFileSync('./dist/worker.js', worker, 'utf8');
