@@ -28,27 +28,50 @@ async function deployToCloudflare() {
         
         console.log('🚀 部署到Cloudflare Worker...');
         
-        // 部署 Worker 脚本
-        const deployResult = await cloudflare.workers.scripts.update(
-            CLOUDFLARE_WORKER_NAME,
-            {
-                account_id: CLOUDFLARE_ACCOUNT_ID,
-                body: workerScript,
-                metadata: {
-                    main_module: 'worker.js',
-                    bindings: [
-                        {
-                            type: 'kv_namespace',
-                            name: 'kv',
-                            namespace_id: process.env.CLOUDFLARE_KV_ID
-                        }
-                    ]
+        // 使用 multipart 方式部署 Worker 脚本
+        const formData = new FormData();
+        
+        // 添加脚本文件
+        const scriptBlob = new Blob([workerScript], { type: 'application/javascript+module' });
+        formData.append('worker.js', scriptBlob, 'worker.js');
+        
+        // 添加元数据
+        const metadata = {
+            main_module: 'worker.js',
+            bindings: [
+                {
+                    type: 'kv_namespace',
+                    name: 'kv',
+                    namespace_id: process.env.CLOUDFLARE_KV_ID
                 }
+            ]
+        };
+        const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+        formData.append('metadata', metadataBlob, 'metadata.json');
+        
+        // 直接使用 fetch 进行部署
+        const deployResponse = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CLOUDFLARE_WORKER_NAME}`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`
+                },
+                body: formData
             }
         );
         
-        console.log('✅ Worker部署成功！');
+        const deployResult = await deployResponse.json();
+        
+        console.log('📊 部署响应状态:', deployResponse.status);
         console.log('📋 部署结果:', JSON.stringify(deployResult, null, 2));
+        
+        if (deployResult.success) {
+            console.log('✅ Worker部署成功！');
+        } else {
+            console.error('💥 Worker部署失败:', deployResult.errors);
+            throw new Error(`部署失败: ${JSON.stringify(deployResult.errors)}`);
+        }
         
         // 配置子域名
         await configureSubdomain();
