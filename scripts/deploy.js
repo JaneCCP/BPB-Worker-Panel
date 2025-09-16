@@ -73,6 +73,9 @@ async function deployToCloudflare() {
     console.log('🌐 配置子域名访问...');
     try {
         // 1. 获取当前子域名状态
+        console.log('📡 正在获取子域名状态...');
+        console.log('🔗 请求URL:', `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain`);
+        
         const getResponse = await fetch(
             `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain`,
             {
@@ -83,16 +86,82 @@ async function deployToCloudflare() {
             }
         );
 
+        console.log('📊 响应状态码:', getResponse.status);
+        console.log('📊 响应状态文本:', getResponse.statusText);
+        
         const getResult = await getResponse.json();
-        console.log('当前子域名状态:', JSON.stringify(getResult, null, 2));
+        console.log('📋 完整API响应:', JSON.stringify(getResult, null, 2));
         
         if (getResponse.ok && getResult.success && getResult.result?.subdomain) {
-            // 子域名已存在
+            // 子域名已存在，获取Worker列表来确认域名
             console.log('🎉 子域名已启用！');
-            console.log(`🌐 Worker地址: https://${CLOUDFLARE_WORKER_NAME}.${getResult.result.subdomain}.workers.dev`);
+            console.log('🔧 从API获取的子域名:', getResult.result.subdomain);
+            
+            // 获取Worker详细信息
+            console.log('📡 正在获取Worker详细信息...');
+            const workerInfoResponse = await fetch(
+                `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CLOUDFLARE_WORKER_NAME}`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`
+                    }
+                }
+            );
+            
+            const workerInfoResult = await workerInfoResponse.json();
+            console.log('📋 Worker信息API响应:', JSON.stringify(workerInfoResult, null, 2));
+            
+            // 获取Worker的子域名绑定信息
+            console.log('📡 正在获取Worker子域名绑定...');
+            const subdomainBindingResponse = await fetch(
+                `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CLOUDFLARE_WORKER_NAME}/subdomain`,
+                {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`
+                    }
+                }
+            );
+            
+            console.log('📊 子域名绑定响应状态:', subdomainBindingResponse.status);
+            const subdomainBindingResult = await subdomainBindingResponse.json();
+            console.log('📋 子域名绑定API响应:', JSON.stringify(subdomainBindingResult, null, 2));
+            
+            // 从API响应构建真实的Worker地址
+            if (subdomainBindingResult.success && subdomainBindingResult.result?.enabled) {
+                console.log('🌐 Worker子域名已启用！');
+                console.log('🌐 真实Worker地址:', `https://${CLOUDFLARE_WORKER_NAME}.${getResult.result.subdomain}.workers.dev`);
+            } else {
+                console.log('⚠️  Worker子域名未启用，尝试启用...');
+                // 启用Worker的子域名
+                const enableWorkerSubdomainResponse = await fetch(
+                    `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CLOUDFLARE_WORKER_NAME}/subdomain`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ enabled: true })
+                    }
+                );
+                
+                const enableResult = await enableWorkerSubdomainResponse.json();
+                console.log('📋 启用Worker子域名结果:', JSON.stringify(enableResult, null, 2));
+                
+                if (enableResult.success) {
+                    console.log('🎉 Worker子域名启用成功！');
+                    console.log('🌐 真实Worker地址:', `https://${CLOUDFLARE_WORKER_NAME}.${getResult.result.subdomain}.workers.dev`);
+                }
+            }
+            
         } else {
             // 2. 创建子域名
-            console.log('📝 创建新的子域名...');
+            console.log('📝 子域名不存在，正在创建...');
+            console.log('🔗 创建请求URL:', `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain`);
+            console.log('📤 请求体:', JSON.stringify({ subdomain: CLOUDFLARE_ACCOUNT_ID }, null, 2));
+            
             const createResponse = await fetch(
                 `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain`,
                 {
@@ -107,22 +176,43 @@ async function deployToCloudflare() {
                 }
             );
 
+            console.log('📊 创建响应状态码:', createResponse.status);
+            console.log('📊 创建响应状态文本:', createResponse.statusText);
+            
             const createResult = await createResponse.json();
-            console.log('子域名创建结果:', JSON.stringify(createResult, null, 2));
+            console.log('📋 子域名创建完整响应:', JSON.stringify(createResult, null, 2));
             
             if (createResponse.ok && createResult.success) {
                 console.log('🎉 子域名创建成功！');
-                console.log(`🌐 Worker地址: https://${CLOUDFLARE_WORKER_NAME}.${createResult.result.subdomain}.workers.dev`);
+                console.log('🔧 从API获取的新子域名:', createResult.result.subdomain);
+                
+                // 创建成功后，再次获取最新状态
+                console.log('📡 重新获取子域名状态确认...');
+                const verifyResponse = await fetch(
+                    `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`
+                        }
+                    }
+                );
+                
+                const verifyResult = await verifyResponse.json();
+                console.log('📋 验证子域名状态响应:', JSON.stringify(verifyResult, null, 2));
+                
+                if (verifyResult.success && verifyResult.result?.subdomain) {
+                    console.log('🌐 确认的真实Worker地址:', `https://${CLOUDFLARE_WORKER_NAME}.${verifyResult.result.subdomain}.workers.dev`);
+                }
             } else {
-                console.log('⚠️  子域名创建失败，但Worker已部署成功');
-                console.log('错误详情:', createResult.errors || createResult.messages);
-                console.log(`🌐 请手动在Cloudflare控制台启用子域名`);
+                console.log('❌ 子域名创建失败');
+                console.log('📋 错误详情:', createResult.errors || createResult.messages || '未知错误');
             }
         }
     } catch (error) {
-        console.log('⚠️  子域名配置出错，但Worker已部署成功');
-        console.log('错误:', error.message);
-        console.log(`🌐 请手动在Cloudflare控制台启用子域名`);
+        console.log('💥 子域名配置过程中发生异常');
+        console.log('📋 异常详情:', error.message);
+        console.log('📋 异常堆栈:', error.stack);
     }
     
     return result;
