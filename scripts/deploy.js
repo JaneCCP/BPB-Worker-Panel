@@ -10,8 +10,9 @@ const WORKER_SCRIPT_PATH = join(__dirname, '../dist/worker.js');
 async function enableWorkersLogs() {
     console.log('📊 正在启用Workers日志...');
     try {
+        // 根据官方API文档使用正确的端点和格式
         const logResponse = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${process.env.CLOUDFLARE_WORKER_NAME}`,
+            `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${process.env.CLOUDFLARE_WORKER_NAME}/settings`,
             {
                 method: 'PATCH',
                 headers: {
@@ -25,6 +26,7 @@ async function enableWorkersLogs() {
         );
         
         console.log('📊 日志启用响应状态:', logResponse.status);
+        console.log('📊 响应头:', Object.fromEntries(logResponse.headers.entries()));
         
         const logContentType = logResponse.headers.get('content-type');
         if (logContentType && logContentType.includes('application/json')) {
@@ -38,7 +40,7 @@ async function enableWorkersLogs() {
             }
         } else {
             const textResponse = await logResponse.text();
-            console.log('📋 日志启用响应:', textResponse);
+            console.log('📋 日志启用原始响应:', textResponse);
         }
         
     } catch (logError) {
