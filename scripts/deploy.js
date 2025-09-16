@@ -152,17 +152,10 @@ async function enableWorkersLogs() {
             CLOUDFLARE_WORKER_NAME,
             {
                 account_id: CLOUDFLARE_ACCOUNT_ID,
-                settings: {
-                    logpush: false,
-                    tail_consumers: [],
-                    usage_model: 'standard',
-                    observability: {
-                        logs: {
-                            enabled: true,
-                            head_sampling_rate: 1,
-                            invocation_logs: true
-                        }
-                    }
+                settings: {                     
+                    enabled: true,
+                    head_sampling_rate: 1,
+                    invocation_logs: true                                   
                 }
             }
         );
