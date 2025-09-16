@@ -109,8 +109,12 @@ async function configureSubdomain() {
                 account_id: CLOUDFLARE_ACCOUNT_ID
             });
             
-            // 强制使用从 API 获取的真实 Worker 名字
-            const realWorkerName = workerInfo.id;
+            // 调试：查看 API 返回的结构
+            console.log('🔍 调试 - Worker信息结构:', JSON.stringify(workerInfo, null, 2));
+            
+            // 尝试不同的字段名来获取 Worker 名字
+            const realWorkerName = workerInfo.id || workerInfo.name || CLOUDFLARE_WORKER_NAME;
+            console.log(`🔍 调试 - 使用的Worker名字: ${realWorkerName}`);
             console.log(`🌐 Worker地址: https://${realWorkerName}.${subdomainResult.subdomain}.workers.dev`);
         } else {
             console.log('📝 创建子域名...');
@@ -128,8 +132,12 @@ async function configureSubdomain() {
                     account_id: CLOUDFLARE_ACCOUNT_ID
                 });
                 
-                // 强制使用从 API 获取的真实 Worker 名字
-                const realWorkerName = workerInfo.id;
+                // 调试：查看 API 返回的结构
+                console.log('🔍 调试 - Worker信息结构:', JSON.stringify(workerInfo, null, 2));
+                
+                // 尝试不同的字段名来获取 Worker 名字
+                const realWorkerName = workerInfo.id || workerInfo.name || CLOUDFLARE_WORKER_NAME;
+                console.log(`🔍 调试 - 使用的Worker名字: ${realWorkerName}`);
                 console.log(`🌐 Worker地址: https://${realWorkerName}.${createResult.subdomain}.workers.dev`);
             }
         }
