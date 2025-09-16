@@ -7,6 +7,19 @@ export async function getSimpleNormalConfigs() {
     let proxyIndex = 1;
     const Addresses = await getConfigAddresses(false);
 
+    // 检查地址列表是否为空，如果为空则返回错误信息
+    if (!Addresses || Addresses.length === 0) {
+        const errorMessage = '配置错误：未设置任何可用的 CDN 地址或优选域名。请在控制面板中配置。';
+        return new Response(errorMessage, {
+            status: 400,
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'CDN-Cache-Control': 'no-store'
+            }
+        });
+    }
+
     const buildConfig = (protocol, addr, port, host, sni, remark) => {
         const isTLS = httpConfig.defaultHttpsPorts.includes(port);
         const security = isTLS ? 'tls' : 'none';
