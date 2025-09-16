@@ -7,6 +7,45 @@ const __dirname = pathDirname(__filename);
 
 const WORKER_SCRIPT_PATH = join(__dirname, '../dist/worker.js');
 
+async function enableWorkersLogs() {
+    console.log('📊 正在启用Workers日志...');
+    try {
+        const logResponse = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${process.env.CLOUDFLARE_WORKER_NAME}`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    logpush: true
+                })
+            }
+        );
+        
+        console.log('📊 日志启用响应状态:', logResponse.status);
+        
+        const logContentType = logResponse.headers.get('content-type');
+        if (logContentType && logContentType.includes('application/json')) {
+            const logResult = await logResponse.json();
+            console.log('📋 Workers日志启用结果:', JSON.stringify(logResult, null, 2));
+            
+            if (logResult.success) {
+                console.log('✅ Workers日志已成功启用！');
+            } else {
+                console.log('⚠️  日志启用失败:', logResult.errors);
+            }
+        } else {
+            const textResponse = await logResponse.text();
+            console.log('📋 日志启用响应:', textResponse);
+        }
+        
+    } catch (logError) {
+        console.log('⚠️  日志启用过程中出现错误:', logError.message);
+    }
+}
+
 async function deployToCloudflare() {
     const {
         CLOUDFLARE_API_TOKEN,
@@ -171,7 +210,20 @@ async function deployToCloudflare() {
             // 从API响应构建真实的Worker地址
             if (subdomainBindingResult.success && subdomainBindingResult.result?.enabled) {
                 console.log('🌐 Worker子域名已启用！');
-                console.log('🌐 真实Worker地址:', `https://${CLOUDFLARE_WORKER_NAME}.${getResult.result.subdomain}.workers.dev`);
+                
+                // 从Worker信息中获取真实的Worker名称
+                let realWorkerName = CLOUDFLARE_WORKER_NAME;
+                if (workerInfoResult && workerInfoResult.success && workerInfoResult.result?.id) {
+                    realWorkerName = workerInfoResult.result.id;
+                    console.log('🔧 从API获取的真实Worker名称:', realWorkerName);
+                } else {
+                    console.log('🔧 使用环境变量Worker名称:', realWorkerName);
+                }
+                
+                console.log('🌐 真实Worker地址:', `https://${realWorkerName}.${getResult.result.subdomain}.workers.dev`);
+                
+                // 启用 Workers 日志
+                await enableWorkersLogs();
             } else {
                 console.log('⚠️  Worker子域名未启用，尝试启用...');
                 // 启用Worker的子域名
@@ -209,9 +261,22 @@ async function deployToCloudflare() {
                 
                 if (enableResult.success) {
                     console.log('🎉 Worker子域名启用成功！');
-                    console.log('🌐 真实Worker地址:', `https://${CLOUDFLARE_WORKER_NAME}.${getResult.result.subdomain}.workers.dev`);
+                    
+                    // 从Worker信息中获取真实的Worker名称
+                    let realWorkerName = CLOUDFLARE_WORKER_NAME;
+                    if (workerInfoResult && workerInfoResult.success && workerInfoResult.result?.id) {
+                        realWorkerName = workerInfoResult.result.id;
+                        console.log('🔧 从API获取的真实Worker名称:', realWorkerName);
+                    } else {
+                        console.log('🔧 使用环境变量Worker名称:', realWorkerName);
+                    }
+                    
+                    console.log('🌐 真实Worker地址:', `https://${realWorkerName}.${getResult.result.subdomain}.workers.dev`);
                 }
             }
+            
+            // 启用 Workers 日志
+            await enableWorkersLogs();
             
         } else {
             // 2. 创建子域名
@@ -259,7 +324,39 @@ async function deployToCloudflare() {
                 console.log('📋 验证子域名状态响应:', JSON.stringify(verifyResult, null, 2));
                 
                 if (verifyResult.success && verifyResult.result?.subdomain) {
-                    console.log('🌐 确认的真实Worker地址:', `https://${CLOUDFLARE_WORKER_NAME}.${verifyResult.result.subdomain}.workers.dev`);
+                    // 获取Worker列表来确认真实的Worker名称
+                    console.log('📡 获取Worker列表确认名称...');
+                    const workerListResponse = await fetch(
+                        `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts`,
+                        {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`
+                            }
+                        }
+                    );
+                    
+                    let realWorkerName = CLOUDFLARE_WORKER_NAME;
+                    if (workerListResponse.ok) {
+                        const workerListResult = await workerListResponse.json();
+                        console.log('📋 Worker列表响应:', JSON.stringify(workerListResult, null, 2));
+                        
+                        // 查找匹配的Worker
+                        if (workerListResult.success && workerListResult.result) {
+                            const matchedWorker = workerListResult.result.find(worker => 
+                                worker.id === CLOUDFLARE_WORKER_NAME || worker.script === CLOUDFLARE_WORKER_NAME
+                            );
+                            if (matchedWorker) {
+                                realWorkerName = matchedWorker.id;
+                                console.log('🔧 从Worker列表获取的真实名称:', realWorkerName);
+                            }
+                        }
+                    }
+                    
+                    console.log('🌐 确认的真实Worker地址:', `https://${realWorkerName}.${verifyResult.result.subdomain}.workers.dev`);
+                    
+                    // 启用 Workers 日志
+                    await enableWorkersLogs();
                 }
             } else {
                 console.log('❌ 子域名创建失败');
