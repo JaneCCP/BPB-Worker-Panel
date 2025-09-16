@@ -37,17 +37,16 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Configure wrangler.toml
-        run: |
-          sed -i "s/__WORKER_NAME__/${{ secrets.CLOUDFLARE_WORKER_NAME }}/g" wrangler.toml
-          sed -i "s/__KV_ID__/${{ secrets.CLOUDFLARE_KV_ID }}/g" wrangler.toml
-          sed -i "s/__ACCOUNT_ID__/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/g" wrangler.toml
-
-      - name: Deploy to Cloudflare Worker
-        uses: cloudflare/wrangler-action@v3
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          name: build-artifacts
+          path: |
+            dist/
+            wrangler.toml
+            package.json
+            RELEASE.md
+          retention-days: 1
 
       - name: Read release note
         id: read_release
@@ -71,3 +70,28 @@ jobs:
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           promote: ${{ github.ref == 'refs/heads/main' }}
           body: ${{ steps.read_release.outputs.RELEASE_BODY }}
+
+  deploy:
+    needs: build
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Configure wrangler.toml
+        run: |
+          sed -i "s/__WORKER_NAME__/${{ secrets.CLOUDFLARE_WORKER_NAME }}/g" wrangler.toml
+          sed -i "s/__KV_ID__/${{ secrets.CLOUDFLARE_KV_ID }}/g" wrangler.toml
+          sed -i "s/__ACCOUNT_ID__/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/g" wrangler.toml
+
+      - name: Deploy to Cloudflare Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
