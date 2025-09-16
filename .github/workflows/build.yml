@@ -43,7 +43,7 @@ jobs:
           name: build-artifacts
           path: |
             dist/
-            wrangler.toml
+            scripts/deploy.js
             package.json
             RELEASE.md
           retention-days: 1
