@@ -16,11 +16,17 @@ const {
 
 // 调试信息：显示环境变量状态
 console.log('🔍 环境变量检查:');
-console.log(`   - CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN ? '已设置' : '未设置'}`);
-console.log(`   - CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID ? '已设置' : '未设置'}`);
-console.log(`   - CLOUDFLARE_WORKER_NAME: ${CLOUDFLARE_WORKER_NAME ? '已设置' : '未设置'}`);
-console.log(`   - CLOUDFLARE_KV_NAME: ${CLOUDFLARE_KV_NAME ? '已设置' : '未设置'}`);
+console.log(`   - CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN ? '✅ 已设置' : '❌ 未设置'}`);
+console.log(`   - CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID ? '✅ 已设置' : '❌ 未设置'}`);
+console.log(`   - CLOUDFLARE_WORKER_NAME: ${CLOUDFLARE_WORKER_NAME ? `✅ ${CLOUDFLARE_WORKER_NAME}` : '❌ 未设置'}`);
+console.log(`   - CLOUDFLARE_KV_NAME: ${CLOUDFLARE_KV_NAME ? `✅ ${CLOUDFLARE_KV_NAME}` : '⚠️ 未设置 (将跳过KV配置)'}`);
 console.log('');
+
+// 检查必需的环境变量
+if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_WORKER_NAME) {
+    console.error('❌ 缺少必需的环境变量，无法继续部署');
+    process.exit(1);
+}
 
 // 文件路径
 const WORKER_SCRIPT_PATH = join(__dirname, '..', 'dist', 'worker.js');
@@ -54,14 +60,16 @@ async function ensureKVNamespace() {
         const existingNamespace = namespaces.find(ns => ns.title === CLOUDFLARE_KV_NAME);
         
         if (existingNamespace) {
-            console.log('✅ 找到现有的 KV 命名空间！');
+            console.log('✅ 检测到已存在的 KV 命名空间！');
             console.log(`   - 名称: ${existingNamespace.title}`);
             console.log(`   - ID: ${existingNamespace.id}`);
+            console.log('📋 使用现有的 KV 命名空间，跳过创建步骤');
             return existingNamespace.id;
         }
         
         // 如果不存在，创建新的命名空间
-        console.log('📝 创建新的 KV 命名空间...');
+        console.log('⚠️ 未检测到同名的 KV 命名空间');
+        console.log('📝 开始创建新的 KV 命名空间...');
         const newNamespace = await cloudflare.kv.namespaces.create({
             account_id: CLOUDFLARE_ACCOUNT_ID,
             title: CLOUDFLARE_KV_NAME
@@ -85,10 +93,18 @@ async function ensureKVNamespace() {
 
 async function deployToCloudflare() {
     try {
-        console.log('📦 读取Worker脚本...');
-        const workerScript = readFileSync(WORKER_SCRIPT_PATH, 'utf8');
+        console.log('📦 读取Worker脚本文件...');
+        console.log(`   - 文件路径: ${WORKER_SCRIPT_PATH}`);
         
-        console.log('🚀 使用官方SDK部署到Cloudflare Worker...');
+        const workerScript = readFileSync(WORKER_SCRIPT_PATH, 'utf8');
+        const scriptSize = (workerScript.length / 1024).toFixed(2);
+        
+        console.log(`✅ Worker脚本读取成功！`);
+        console.log(`   - 脚本大小: ${scriptSize} KB`);
+        console.log(`   - 脚本类型: ES Module`);
+        console.log('');
+        
+        console.log('🚀 开始部署到Cloudflare Workers...');
         
         // 创建脚本文件对象
         const scriptFile = new File([workerScript], 'worker.js', { 
@@ -124,12 +140,15 @@ async function deployToCloudflare() {
         );
         
         console.log('✅ Worker部署成功！');
-        console.log('📋 部署信息:');
+        console.log('📋 部署详细信息:');
+        console.log(`   - Worker名称: ${CLOUDFLARE_WORKER_NAME}`);
         console.log(`   - Worker ID: ${deployResult.id}`);
         console.log(`   - 部署时间: ${new Date(deployResult.modified_on).toLocaleString('zh-CN')}`);
         console.log(`   - 启动时间: ${deployResult.startup_time_ms}ms`);
         console.log(`   - 使用模式: ${deployResult.usage_model}`);
-        console.log(`   - 是否包含模块: ${deployResult.has_modules ? '是' : '否'}`);
+        console.log(`   - ES模块支持: ${deployResult.has_modules ? '✅ 是' : '❌ 否'}`);
+        console.log(`   - KV绑定: ${kvNamespaceId ? '✅ 已配置' : '⚠️ 未配置'}`);
+        console.log('');
         
         // 配置子域名
         await configureSubdomain();
@@ -139,6 +158,17 @@ async function deployToCloudflare() {
         
         // 检查并启用日志
         await enableWorkersLogs();
+        
+        // 部署完成总结
+        console.log('');
+        console.log('🎉 部署流程全部完成！');
+        console.log('📋 部署总结:');
+        console.log(`   - Worker名称: ${CLOUDFLARE_WORKER_NAME}`);
+        console.log(`   - KV存储: ${CLOUDFLARE_KV_NAME ? `✅ ${CLOUDFLARE_KV_NAME}` : '⚠️ 未配置'}`);
+        console.log(`   - 子域名访问: ✅ 已启用`);
+        console.log(`   - 日志监控: ✅ 已启用`);
+        console.log('');
+        console.log('🚀 你的Worker现在已经可以正常使用了！');
         
     } catch (error) {
         console.error('💥 部署失败:', error.message);
@@ -153,14 +183,16 @@ async function configureSubdomain() {
     console.log('🌐 配置Worker子域名访问...');
     try {
         // 首先获取账户级别的子域名信息
+        console.log('📋 检查账户子域名配置...');
         let accountSubdomain = null;
         try {
             const subdomainResult = await cloudflare.workers.subdomains.get({
                 account_id: CLOUDFLARE_ACCOUNT_ID
             });
             accountSubdomain = subdomainResult.subdomain;
+            console.log(`✅ 检测到账户子域名: ${accountSubdomain}`);
         } catch (error) {
-            console.log('📝 账户子域名未配置，尝试创建...');
+            console.log('⚠️ 账户子域名未配置，尝试自动创建...');
             try {
                 const createResult = await cloudflare.workers.subdomains.update({
                     account_id: CLOUDFLARE_ACCOUNT_ID,
@@ -182,12 +214,12 @@ async function configureSubdomain() {
                 }
             );
             
-            console.log('📊 当前Worker子域名状态:');
-            console.log(`   - 子域名启用: ${workerSubdomainStatus.enabled ? '是' : '否'}`);
-            console.log(`   - 预览启用: ${workerSubdomainStatus.previews_enabled ? '是' : '否'}`);
+            console.log('📊 检查Worker子域名状态...');
+            console.log(`   - 子域名启用: ${workerSubdomainStatus.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 预览功能: ${workerSubdomainStatus.previews_enabled ? '✅ 已启用' : '❌ 未启用'}`);
             
             if (!workerSubdomainStatus.enabled) {
-                console.log('📝 启用Worker子域名...');
+                console.log('📝 正在启用Worker子域名...');
                 const enableResult = await cloudflare.workers.scripts.subdomain.create(
                     CLOUDFLARE_WORKER_NAME,
                     {
@@ -197,9 +229,11 @@ async function configureSubdomain() {
                     }
                 );
                 
-                console.log('✅ Worker子域名已启用！');
-                console.log(`   - 子域名启用: ${enableResult.enabled ? '是' : '否'}`);
-                console.log(`   - 预览启用: ${enableResult.previews_enabled ? '是' : '否'}`);
+                console.log('✅ Worker子域名启用成功！');
+                console.log(`   - 子域名状态: ${enableResult.enabled ? '✅ 已启用' : '❌ 启用失败'}`);
+                console.log(`   - 预览功能: ${enableResult.previews_enabled ? '✅ 已启用' : '❌ 未启用'}`);
+            } else {
+                console.log('✅ Worker子域名已处于启用状态，无需配置');
             }
             
             // 显示访问地址
@@ -247,15 +281,16 @@ async function configureSubdomain() {
 }
 
 async function configureKVBinding() {
-    console.log('🗄️ 验证KV存储绑定...');
+    console.log('🗄️ 验证KV存储绑定状态...');
     
     // 如果没有配置 KV 数据库名称，跳过验证
     if (!CLOUDFLARE_KV_NAME) {
-        console.log('⚠️ 未配置 KV 数据库，跳过绑定验证');
+        console.log('⚠️ 未配置KV数据库名称，跳过绑定验证');
         return;
     }
     
     try {
+        console.log('📋 获取Worker配置信息...');
         // 获取当前 Worker 的详细信息来验证绑定
         const workerDetails = await cloudflare.workers.scripts.get(CLOUDFLARE_WORKER_NAME, {
             account_id: CLOUDFLARE_ACCOUNT_ID
@@ -270,12 +305,14 @@ async function configureKVBinding() {
         
         if (kvBinding) {
             console.log('✅ KV存储绑定验证成功！');
-            console.log('📋 绑定信息:');
-            console.log(`   - 变量名: ${kvBinding.name}`);
+            console.log('📋 KV绑定详细信息:');
+            console.log(`   - 绑定变量名: ${kvBinding.name}`);
             console.log(`   - 命名空间ID: ${kvBinding.namespace_id}`);
             console.log(`   - 数据库名称: ${CLOUDFLARE_KV_NAME}`);
+            console.log(`   - 绑定类型: ${kvBinding.type}`);
         } else {
-            console.log('⚠️ 未找到 KV 绑定，可能配置失败');
+            console.log('❌ 未检测到KV绑定配置');
+            console.log('⚠️ 可能原因: KV命名空间创建失败或绑定配置错误');
         }
         
     } catch (error) {
@@ -287,8 +324,9 @@ async function configureKVBinding() {
 }
 
 async function enableWorkersLogs() {
-    console.log('📊 检查Workers日志状态...');
+    console.log('📊 检查Workers日志配置状态...');
     try {
+        console.log('📋 获取当前日志设置...');
         // 先获取当前日志配置
         const currentSettings = await cloudflare.workers.scripts.settings.get(
             CLOUDFLARE_WORKER_NAME,
@@ -303,15 +341,16 @@ async function enableWorkersLogs() {
             currentSettings.observability.logs.enabled;
         
         if (logsEnabled) {
-            console.log('✅ Workers日志已启用！');
-            console.log('📋 当前日志配置:');
-            console.log(`   - 可观测性: ${currentSettings.observability.enabled ? '已启用' : '未启用'}`);
-            console.log(`   - 日志记录: ${currentSettings.observability.logs.enabled ? '已启用' : '未启用'}`);
-            console.log(`   - 调用日志: ${currentSettings.observability.logs.invocation_logs ? '已启用' : '未启用'}`);
+            console.log('✅ 检测到Workers日志已启用！');
+            console.log('📋 当前日志配置详情:');
+            console.log(`   - 可观测性: ${currentSettings.observability.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 日志记录: ${currentSettings.observability.logs.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 调用日志: ${currentSettings.observability.logs.invocation_logs ? '✅ 已启用' : '❌ 未启用'}`);
             console.log(`   - 采样率: ${(currentSettings.observability.logs.head_sampling_rate * 100)}%`);
-            console.log(`   - Logpush: ${currentSettings.logpush ? '已启用' : '未启用'}`);
+            console.log(`   - Logpush: ${currentSettings.logpush ? '✅ 已启用' : '❌ 未启用'}`);
         } else {
-            console.log('📝 启用Workers日志...');
+            console.log('⚠️ 检测到Workers日志未启用');
+            console.log('📝 正在启用Workers日志功能...');
             // 根据 settings.ts 接口使用官方标准的完整配置结构
             const logResult = await cloudflare.workers.scripts.settings.edit(
                 CLOUDFLARE_WORKER_NAME,
@@ -332,15 +371,16 @@ async function enableWorkersLogs() {
             );
             
             if (logResult.observability && logResult.observability.logs && logResult.observability.logs.enabled) {
-                console.log('✅ Workers日志已成功启用！');
-                console.log('📋 日志配置信息:');
-                console.log(`   - 可观测性: ${logResult.observability.enabled ? '已启用' : '未启用'}`);
-                console.log(`   - 日志记录: ${logResult.observability.logs.enabled ? '已启用' : '未启用'}`);
-                console.log(`   - 调用日志: ${logResult.observability.logs.invocation_logs ? '已启用' : '未启用'}`);
+                console.log('✅ Workers日志启用成功！');
+                console.log('📋 新的日志配置详情:');
+                console.log(`   - 可观测性: ${logResult.observability.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+                console.log(`   - 日志记录: ${logResult.observability.logs.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+                console.log(`   - 调用日志: ${logResult.observability.logs.invocation_logs ? '✅ 已启用' : '❌ 未启用'}`);
                 console.log(`   - 采样率: ${(logResult.observability.logs.head_sampling_rate * 100)}%`);
-                console.log(`   - Logpush: ${logResult.logpush ? '已启用' : '未启用'}`);
+                console.log(`   - Logpush: ${logResult.logpush ? '✅ 已启用' : '❌ 未启用'}`);
             } else {
-                console.log('⚠️ Workers日志启用状态未确认');
+                console.log('❌ Workers日志启用失败');
+                console.log('⚠️ 请检查账户权限或手动在控制台中启用');
             }
         }
         
