@@ -18,8 +18,8 @@ const {
 console.log('🔍 环境变量检查:');
 console.log(`   - CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN ? '已设置' : '未设置'}`);
 console.log(`   - CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID ? '已设置' : '未设置'}`);
-console.log(`   - CLOUDFLARE_WORKER_NAME: ${CLOUDFLARE_WORKER_NAME || '未设置'}`);
-console.log(`   - CLOUDFLARE_KV_NAME: ${CLOUDFLARE_KV_NAME || '未设置'}`);
+console.log(`   - CLOUDFLARE_WORKER_NAME: ${CLOUDFLARE_WORKER_NAME ? '已设置' : '未设置'}`);
+console.log(`   - CLOUDFLARE_KV_NAME: ${CLOUDFLARE_KV_NAME ? '已设置' : '未设置'}`);
 console.log('');
 
 // 文件路径
