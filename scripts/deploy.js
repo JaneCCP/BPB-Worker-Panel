@@ -10,9 +10,15 @@ const WORKER_SCRIPT_PATH = join(__dirname, '../dist/worker.js');
 async function enableWorkersLogs() {
     console.log('📊 正在启用Workers日志...');
     try {
-        // 使用multipart/form-data格式
+        // 创建包含settings部分的multipart/form-data
         const formData = new FormData();
-        formData.append('logpush', 'true');
+        
+        // 添加settings部分，包含日志配置
+        const settingsBlob = new Blob([JSON.stringify({
+            logpush: true
+        })], { type: 'application/json' });
+        
+        formData.append('settings', settingsBlob, 'settings.json');
         
         const logResponse = await fetch(
             `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${process.env.CLOUDFLARE_WORKER_NAME}/settings`,
