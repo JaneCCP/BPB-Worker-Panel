@@ -85,6 +85,7 @@ async function deployToCloudflare() {
         );
 
         const checkResult = await checkResponse.json();
+        console.log('子域名检查结果:', JSON.stringify(checkResult, null, 2));
         
         if (checkResponse.ok && checkResult.result?.subdomain) {
             console.log('🎉 子域名已启用！');
@@ -104,10 +105,44 @@ async function deployToCloudflare() {
             );
 
             const enableResult = await enableResponse.json();
+            console.log('子域名启用结果:', JSON.stringify(enableResult, null, 2));
             
             if (enableResponse.ok) {
                 console.log('🎉 子域名已成功启用！');
                 console.log(`🌐 Worker地址: https://${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_ACCOUNT_ID}.workers.dev`);
+                
+                // 再次检查确认状态
+                const verifyResponse = await fetch(
+                    `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain`,
+                    {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                const verifyResult = await verifyResponse.json();
+                console.log('验证子域名状态:', JSON.stringify(verifyResult, null, 2));
+                
+                // 添加路由配置
+                console.log('🔗 配置Worker路由...');
+                const routeResponse = await fetch(
+                    `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${CLOUDFLARE_WORKER_NAME}/routes`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            pattern: `${CLOUDFLARE_WORKER_NAME}.${CLOUDFLARE_ACCOUNT_ID}.workers.dev/*`,
+                            script: CLOUDFLARE_WORKER_NAME
+                        })
+                    }
+                );
+                const routeResult = await routeResponse.json();
+                console.log('路由配置结果:', JSON.stringify(routeResult, null, 2));
             } else {
                 console.log('⚠️  子域名配置失败，但Worker已部署成功');
                 console.log('错误详情:', enableResult.errors);
