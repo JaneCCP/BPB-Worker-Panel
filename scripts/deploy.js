@@ -27,12 +27,14 @@ async function deployToCloudflare() {
     // 构建multipart表单数据
     const formData = new FormData();
     
-    // 添加脚本文件
-    formData.append('script', new Blob([workerScript], { type: 'application/javascript' }), 'worker.js');
+    // 添加脚本文件 - 使用正确的 MIME 类型
+    formData.append('worker.js', new Blob([workerScript], { type: 'application/javascript+module' }), 'worker.js');
     
     // 添加配置元数据
     const metadata = {
         main_module: 'worker.js',
+        compatibility_date: '2025-09-16',
+        usage_model: 'standard',
         bindings: [
             {
                 type: 'kv_namespace',
@@ -42,8 +44,7 @@ async function deployToCloudflare() {
         ],
         vars: {
             ENVIRONMENT: 'production'
-        },
-        compatibility_date: '2025-09-16'
+        }
     };
     
     formData.append('metadata', JSON.stringify(metadata));
