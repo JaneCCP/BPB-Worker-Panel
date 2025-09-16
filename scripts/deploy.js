@@ -298,6 +298,7 @@ async function configureKVBinding() {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             console.log(`📋 获取Worker配置信息... (尝试 ${attempt}/${maxRetries})`);
+            console.log('🔧 [DEBUG] 使用 scriptAndVersionSettings.get() 方法获取配置');
             
             // 使用正确的API方法获取Worker的配置信息（包含绑定）
             const workerSettings = await cloudflare.workers.scripts.scriptAndVersionSettings.get(
@@ -307,7 +308,10 @@ async function configureKVBinding() {
                 }
             );
             
+            console.log('🔧 [DEBUG] scriptAndVersionSettings.get() 调用成功，检查绑定信息');
+            
             // 检查是否已有 KV 绑定
+            console.log('🔧 [DEBUG] 开始检查 workerSettings.bindings 中的KV绑定');
             const kvBinding = workerSettings.bindings && 
                 workerSettings.bindings.find(binding => 
                     binding.type === 'kv_namespace' && 
@@ -315,6 +319,7 @@ async function configureKVBinding() {
                 );
             
             if (kvBinding) {
+                console.log('🔧 [DEBUG] 在 scriptAndVersionSettings 中找到了KV绑定！');
                 console.log('✅ KV存储绑定验证成功！');
                 console.log('📋 KV绑定详细信息:');
                 console.log(`   - 绑定变量名: ${kvBinding.name}`);
@@ -323,6 +328,7 @@ async function configureKVBinding() {
                 console.log(`   - 绑定类型: ${kvBinding.type}`);
                 
                 // 额外验证：通过KV命名空间ID确认KV存储确实存在
+                console.log('🔧 [DEBUG] 调用 verifyKVNamespaceExists() 进行额外验证');
                 await verifyKVNamespaceExists(kvBinding.namespace_id);
                 return; // 验证成功，退出重试循环
             } else {
@@ -355,11 +361,14 @@ async function configureKVBinding() {
 async function verifyKVNamespaceExists(namespaceId) {
     try {
         console.log('🔍 通过KV命名空间ID验证存储状态...');
+        console.log('🔧 [DEBUG] 使用 kv.namespaces.get() 方法验证命名空间');
         
         // 使用官方SDK获取KV命名空间详细信息
         const namespaceInfo = await cloudflare.kv.namespaces.get(namespaceId, {
             account_id: CLOUDFLARE_ACCOUNT_ID
         });
+        
+        console.log('🔧 [DEBUG] kv.namespaces.get() 调用成功，命名空间确实存在');
         
         console.log('✅ KV命名空间验证成功！');
         console.log('📋 KV命名空间详细信息:');
