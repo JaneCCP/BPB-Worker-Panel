@@ -100,7 +100,17 @@ async function configureSubdomain() {
         
         if (subdomainResult.subdomain) {
             console.log('🎉 子域名已启用！');
-            console.log(`🌐 Worker地址: https://${CLOUDFLARE_WORKER_NAME}.${subdomainResult.subdomain}.workers.dev`);
+            
+            // 获取真实的 Worker 信息
+            const workerInfo = await cloudflare.workers.scripts.get(CLOUDFLARE_WORKER_NAME, {
+                account_id: CLOUDFLARE_ACCOUNT_ID
+            });
+            
+            console.log('📋 Worker信息:', JSON.stringify(workerInfo, null, 2));
+            
+            // 使用从 API 获取的真实信息构建地址
+            const realWorkerName = workerInfo.id || CLOUDFLARE_WORKER_NAME;
+            console.log(`🌐 Worker地址: https://${realWorkerName}.${subdomainResult.subdomain}.workers.dev`);
         } else {
             console.log('📝 创建子域名...');
             const createResult = await cloudflare.workers.subdomains.update({
@@ -112,7 +122,17 @@ async function configureSubdomain() {
             
             if (createResult.subdomain) {
                 console.log('✅ 子域名创建成功！');
-                console.log(`🌐 Worker地址: https://${CLOUDFLARE_WORKER_NAME}.${createResult.subdomain}.workers.dev`);
+                
+                // 获取真实的 Worker 信息
+                const workerInfo = await cloudflare.workers.scripts.get(CLOUDFLARE_WORKER_NAME, {
+                    account_id: CLOUDFLARE_ACCOUNT_ID
+                });
+                
+                console.log('📋 Worker信息:', JSON.stringify(workerInfo, null, 2));
+                
+                // 使用从 API 获取的真实信息构建地址
+                const realWorkerName = workerInfo.id || CLOUDFLARE_WORKER_NAME;
+                console.log(`🌐 Worker地址: https://${realWorkerName}.${createResult.subdomain}.workers.dev`);
             }
         }
         
@@ -127,7 +147,7 @@ async function configureSubdomain() {
 async function enableWorkersLogs() {
     console.log('📊 正在启用Workers日志...');
     try {
-        // 使用官方 SDK 启用日志
+        // 使用正确的配置结构启用 Workers 日志
         const logResult = await cloudflare.workers.scripts.settings.edit(
             CLOUDFLARE_WORKER_NAME,
             {
@@ -135,19 +155,7 @@ async function enableWorkersLogs() {
                 settings: {
                     logpush: false,
                     tail_consumers: [],
-                    usage_model: 'standard'
-                }
-            }
-        );
-        
-        console.log('📋 日志配置结果:', JSON.stringify(logResult, null, 2));
-        
-        // 启用观测性日志
-        const observabilityResult = await cloudflare.workers.scripts.settings.edit(
-            CLOUDFLARE_WORKER_NAME,
-            {
-                account_id: CLOUDFLARE_ACCOUNT_ID,
-                settings: {
+                    usage_model: 'standard',
                     observability: {
                         logs: {
                             enabled: true,
@@ -159,8 +167,13 @@ async function enableWorkersLogs() {
             }
         );
         
-        console.log('📋 观测性日志结果:', JSON.stringify(observabilityResult, null, 2));
-        console.log('✅ Workers日志已成功启用！');
+        console.log('📋 Workers日志配置结果:', JSON.stringify(logResult, null, 2));
+        
+        if (logResult.observability && logResult.observability.logs && logResult.observability.logs.enabled) {
+            console.log('✅ Workers日志已成功启用！');
+        } else {
+            console.log('⚠️ Workers日志启用状态未确认');
+        }
         
     } catch (error) {
         console.log('⚠️ 日志启用失败:', error.message);
