@@ -15,7 +15,7 @@ async function enableWorkersLogs() {
         
         // 添加settings部分，包含日志配置
         const settingsBlob = new Blob([JSON.stringify({
-            logpush: true
+            log: true
         })], { type: 'application/json' });
         
         formData.append('settings', settingsBlob, 'settings.json');
