@@ -1,48 +1,61 @@
-deploy:
-  needs: build
-  runs-on: ubuntu-latest
-  if: github.event_name == 'workflow_dispatch'
-    
-  steps:
-    - name: Check out the code
-      uses: actions/checkout@v4
+name: Build and Release
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: build-artifacts
-        path: dist/
+permissions:
+  contents: write
 
-    - name: Check the worker.js file before deploy
-      run: cat dist/worker.js
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */1 * * *'
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: "latest"
+jobs:
+  build:
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
 
-    - name: Install Wrangler
-      run: npm install -g wrangler
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
 
-    - name: Update wrangler.toml with secrets
-      run: |
-        node -e "
-          const fs = require('fs');
-          let content = fs.readFileSync('wrangler.toml', 'utf8');
-          content = content.replace(/__WORKER_NAME__/g, process.env.WORKER_NAME);
-          content = content.replace(/__ACCOUNT_ID__/g, process.env.ACCOUNT_ID);
-          content = content.replace(/__ZONE_ID__/g, process.env.ZONE_ID);
-          content = content.replace(/__KV_ID__/g, process.env.KV_ID);
-          fs.writeFileSync('wrangler.toml', content);
-        "
-      env:
-        WORKER_NAME: ${{ secrets.CLOUDFLARE_WORKER_NAME }}
-        ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-        KV_ID: ${{ secrets.CLOUDFLARE_KV_ID }}
+      - name: Get release version
+        id: get_version
+        run: echo "RELEASE_VERSION=$(jq -r .version package.json)" >> $GITHUB_ENV
 
-    - name: Deploy to Cloudflare Workers
-      env:
-        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      run: |
-        wrangler deploy --env production
+      - name: Check release version
+        run: echo "Release version is $RELEASE_VERSION"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "latest"
+
+      - name: Install dependencies
+        run: npm install --production
+
+      - name: Build project
+        run: npm run build
+
+      - name: Read release note
+        id: read_release
+        shell: bash
+        run: |
+          r=$(cat RELEASE.md)         
+          r="${r//'%'/'%25'}"                               
+          r="${r//$'\n'/'%0A'}"                             
+          r="${r//$'\r'/'%0D'}"                             
+          echo "RELEASE_BODY=$r" >> $GITHUB_OUTPUT          
+
+      - name: Upload Release Assets
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*
+          tag: v${{ env.RELEASE_VERSION }}
+          release_name: Release v${{ env.RELEASE_VERSION }}
+          overwrite: true
+          file_glob: true
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
+          promote: ${{ github.ref == 'refs/heads/main' }}
+          body: ${{ steps.read_release.outputs.RELEASE_BODY }}
