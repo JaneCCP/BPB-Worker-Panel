@@ -10,18 +10,19 @@ const WORKER_SCRIPT_PATH = join(__dirname, '../dist/worker.js');
 async function enableWorkersLogs() {
     console.log('📊 正在启用Workers日志...');
     try {
-        // 根据官方API文档使用正确的端点和格式
+        // 使用multipart/form-data格式
+        const formData = new FormData();
+        formData.append('logpush', 'true');
+        
         const logResponse = await fetch(
             `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${process.env.CLOUDFLARE_WORKER_NAME}/settings`,
             {
                 method: 'PATCH',
                 headers: {
-                    'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`
+                    // 不设置Content-Type，让浏览器自动设置multipart/form-data
                 },
-                body: JSON.stringify({
-                    logpush: true
-                })
+                body: formData
             }
         );
         
