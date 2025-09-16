@@ -126,6 +126,7 @@ async function configureSubdomain() {
             // 只有在成功获取到真实 Worker 名称时才输出地址
             if (currentWorker && currentWorker.id) {
                 console.log(`🌐 Worker地址: https://${currentWorker.id}.${subdomainResult.subdomain}.workers.dev`);
+                console.log(`🌐 ${currentWorker.id}`);
             } else {
                 console.log('⚠️ 无法获取 Worker 真实名称，跳过地址输出');
             }
