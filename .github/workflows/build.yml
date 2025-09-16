@@ -6,9 +6,9 @@ permissions:
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, dev ]
 
 jobs:
   build:
@@ -87,6 +87,7 @@ jobs:
           echo "RELEASE_BODY=$r" >> $GITHUB_OUTPUT          
 
       - name: Upload Release Assets
+        if: github.ref == 'refs/heads/main'  # 仅在main分支创建Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -95,8 +96,8 @@ jobs:
           release_name: Release v${{ env.RELEASE_VERSION }}
           overwrite: true
           file_glob: true
-          prerelease: ${{ github.ref != 'refs/heads/main' }}
-          promote: ${{ github.ref == 'refs/heads/main' }}
+          prerelease: false
+          promote: true
           body: ${{ steps.read_release.outputs.RELEASE_BODY }}
 
       - name: Upload build artifacts
@@ -189,5 +190,6 @@ jobs:
         run: |
           # 使用wrangler部署到Cloudflare Workers
           echo "🚀 开始部署到Cloudflare Workers..."
-          wrangler deploy --env production
+          echo "当前分支: ${{ github.ref_name }}"
+          wrangler deploy
           echo "✔ 部署完成！"
