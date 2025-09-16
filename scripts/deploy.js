@@ -15,13 +15,15 @@ async function enableWorkersLogs() {
         
         // 添加settings部分，包含日志配置
         const settingsBlob = new Blob([JSON.stringify({
-            log: true
+            enabled: true,
+            head_sampling_rate: 1,
+            invocation_logs: true
         })], { type: 'application/json' });
         
         formData.append('settings', settingsBlob, 'settings.json');
         
         const logResponse = await fetch(
-            `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${process.env.CLOUDFLARE_WORKER_NAME}/settings`,
+            `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${process.env.CLOUDFLARE_WORKER_NAME}/script-settings`,
             {
                 method: 'PATCH',
                 headers: {
