@@ -99,7 +99,7 @@ export async function getSimpleNormalConfigs() {
     }
 
     const configs = btoa(VLConfs + TRConfs + chainProxy);
-    const hiddifyHash = base64EncodeUnicode(`💦 Normal Sub`);
+    const hiddifyHash = base64EncodeUnicode(`💦 普通订阅`);
 
     return new Response(configs, {
         status: 200,
