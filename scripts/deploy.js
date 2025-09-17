@@ -149,14 +149,11 @@ async function deployToCloudflare() {
         console.log(`   - KV绑定: ${kvNamespaceId ? '✅ 已配置' : '⚠️ 未配置'}`);
         console.log('');
         
-        // 先配置子域名，再检查日志（避免并行操作可能的冲突）
-        await configureSubdomain();
-        
-        // 等待一下，确保前面的操作完全完成
-        console.log('⏳ 等待配置生效...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        await enableWorkersLogs();
+        // 并行执行独立的配置操作
+        await Promise.all([
+            configureSubdomain(),
+            enableWorkersLogs()
+        ]);
         
         // KV绑定验证需要等待部署完成，所以单独执行
         await configureKVBinding();
@@ -343,29 +340,12 @@ async function enableWorkersLogs() {
             }
         );
         
-        // 详细记录当前状态
-        console.log('🔍 详细日志状态检查:');
-        console.log(`   - observability 对象存在: ${currentSettings.observability ? '✅' : '❌'}`);
-        if (currentSettings.observability) {
-            console.log(`   - observability.enabled: ${currentSettings.observability.enabled ? '✅' : '❌'}`);
-            console.log(`   - logs 对象存在: ${currentSettings.observability.logs ? '✅' : '❌'}`);
-            if (currentSettings.observability.logs) {
-                console.log(`   - logs.enabled: ${currentSettings.observability.logs.enabled ? '✅' : '❌'}`);
-                console.log(`   - logs.invocation_logs: ${currentSettings.observability.logs.invocation_logs ? '✅' : '❌'}`);
-                console.log(`   - logs.head_sampling_rate: ${currentSettings.observability.logs.head_sampling_rate || 0}`);
-            }
-        }
-        console.log(`   - logpush: ${currentSettings.logpush ? '✅' : '❌'}`);
-        
-        // 检查日志是否已启用 - 需要同时检查 observability.enabled 和 logs.enabled
-        const observabilityEnabled = currentSettings.observability && currentSettings.observability.enabled;
+        // 检查日志是否已启用
         const logsEnabled = currentSettings.observability && 
             currentSettings.observability.logs && 
             currentSettings.observability.logs.enabled;
         
-        const fullLogsEnabled = observabilityEnabled && logsEnabled;
-        
-        if (fullLogsEnabled) {
+        if (logsEnabled) {
             console.log('✅ 检测到Workers日志已启用！');
             console.log('📋 当前日志配置详情:');
             console.log(`   - 可观测性: ${currentSettings.observability.enabled ? '✅ 已启用' : '❌ 未启用'}`);
