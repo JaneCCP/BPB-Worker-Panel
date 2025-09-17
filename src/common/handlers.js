@@ -80,20 +80,38 @@ export async function handleSubscriptions(request, env) {
     settings = dataset.settings;
     const { client, subPath } = httpConfig;
     const path = decodeURIComponent(globalConfig.pathName);
+    const url = new URL(request.url);
+    const appParam = url.searchParams.get('app');
 
     switch (path) {
         case `/sub/simple-normal/${subPath}`:
             return await getSimpleNormalConfigs();
         case `/sub/normal/${subPath}`:
-            switch (client) {
-                case 'sing-box':
-                    return await getSingBoxCustomConfig(env, false);
-                case 'clash':
-                    return await getClashNormalConfig(env);
-                case 'xray':
-                    return await getXrayCustomConfigs(env, false);
-                default:
-                    break;
+            // 检查是否有app=singbox参数，决定使用哪组配置
+            if (appParam === 'singbox') {
+                // 第二组应用程序 (husi, Nekobox, Nekoray, Karing)
+                switch (client) {
+                    case 'sing-box':
+                        return await getSingBoxCustomConfig(env, false);
+                    case 'clash':
+                        return await getClashNormalConfig(env);
+                    case 'xray':
+                        return await getXrayCustomConfigs(env, false);
+                    default:
+                        break;
+                }
+            } else {
+                // 第一组应用程序 (v2rayNG, MahsaNG, v2rayN, v2rayN-PRO, Shadowrocket, Streisand, Hiddify)
+                switch (client) {
+                    case 'sing-box':
+                        return await getSingBoxCustomConfig(env, false);
+                    case 'clash':
+                        return await getClashNormalConfig(env);
+                    case 'xray':
+                        return await getXrayCustomConfigs(env, false);
+                    default:
+                        break;
+                }
             }
 
         case `/sub/fragment/${subPath}`:
@@ -225,7 +243,7 @@ async function getWarpConfigs(request, env) {
                 `[Interface]
                 PrivateKey = ${privateKey}
                 Address = 172.16.0.2/32, ${warpIPv6}
-                DNS = 8.8.8.8, 8.8.4.4
+                DNS = 1.1.1.1, 1.0.0.1
                 MTU = 1280
                 ${amneziaNoise}
                 [Peer]

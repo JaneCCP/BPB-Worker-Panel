@@ -23,7 +23,7 @@ export async function VlOverWSHandler(request) {
     let udpStreamWrite = null;
     let isDns = false;
 
-    // ws --> remote
+    // WebSocket --> 远程服务器
     readableWebSocketStream.pipeTo(new WritableStream({
         async write(chunk) {
             if (isDns && udpStreamWrite) {
@@ -52,16 +52,16 @@ export async function VlOverWSHandler(request) {
             
             if (hasError) {
                 // controller.error(message);
-                throw new Error(message); // cf seems has bug, controller.error will not end stream
+                throw new Error(message); // Cloudflare似乎有bug，controller.error不会结束流
                 // webSocket.close(1000, message);
                 // return;
             }
             
-            // ["version", "附加信息长度 N"]
+            // ["版本", "附加信息长度 N"]
             const VLResponseHeader = new Uint8Array([VLVersion[0], 0]);
             const rawClientData = chunk.slice(rawDataIndex);
             
-            // if UDP but port not DNS port, close it
+            // 如果是UDP但端口不是DNS端口，则关闭连接
             if (isUDP) {
                 if (portRemote === 53) {
                     isDns = true;
@@ -71,7 +71,7 @@ export async function VlOverWSHandler(request) {
                     return;
                 } else {
                     // controller.error('UDP proxy only enable for DNS which is port 53');
-                    throw new Error("UDP代理仅支持DNS，端口为53"); // cf seems has bug, controller.error will not end stream
+                    throw new Error("UDP代理仅支持DNS服务(端口53)"); // Cloudflare似乎有bug，controller.error不会结束流
                     // return;
                 }
             }
@@ -87,15 +87,15 @@ export async function VlOverWSHandler(request) {
             );
         },
         close() {
-            log(`readableWebSocketStream 已关闭`);
+            log(`可读WebSocket流已关闭`);
         },
         abort(reason) {
-            log(`readableWebSocketStream 已中止`, JSON.stringify(reason));
+            log(`可读WebSocket流已中止`, JSON.stringify(reason));
         },
     })
     )
         .catch((err) => {
-            log("readableWebSocketStream pipeTo 错误", err);
+            log("可读WebSocket流管道传输错误", err);
         });
 
     return new Response(null, {
@@ -108,7 +108,7 @@ function processVLHeader(VLBuffer, userID) {
     if (VLBuffer.byteLength < 24) {
         return {
             hasError: true,
-            message: "无效数据",
+            message: "数据无效",
         };
     }
     const version = new Uint8Array(VLBuffer.slice(0, 1));
@@ -121,37 +121,37 @@ function processVLHeader(VLBuffer, userID) {
     if (!isValidUser) {
         return {
             hasError: true,
-            message: "无效用户",
+            message: "用户无效",
         };
     }
 
     const optLength = new Uint8Array(VLBuffer.slice(17, 18))[0];
-    //skip opt for now
+    // 暂时跳过可选项
 
     const command = new Uint8Array(VLBuffer.slice(18 + optLength, 18 + optLength + 1))[0];
 
     // 0x01 TCP
     // 0x02 UDP
     // 0x03 MUX
-    if (command === 1) { /* empty */ } else if (command === 2) {
+    if (command === 1) { /* 空 */ } else if (command === 2) {
         isUDP = true;
     } else {
         return {
             hasError: true,
-            message: `不支持命令 ${command}，命令格式: 01-tcp,02-udp,03-mux`,
+            message: `命令 ${command} 不支持，支持的命令：01-tcp，02-udp，03-mux`,
         };
     }
     const portIndex = 18 + optLength + 1;
     const portBuffer = VLBuffer.slice(portIndex, portIndex + 2);
-    // port is big-Endian in raw data etc 80 == 0x005d
+    // 端口在原始数据中是大端序，例如 80 == 0x005d
     const portRemote = new DataView(portBuffer).getUint16(0);
 
     let addressIndex = portIndex + 2;
     const addressBuffer = new Uint8Array(VLBuffer.slice(addressIndex, addressIndex + 1));
 
-    // 1--> ipv4  addressLength =4
-    // 2--> domain name addressLength=addressBuffer[1]
-    // 3--> ipv6  addressLength =16
+    // 1--> IPv4  地址长度 = 4
+    // 2--> 域名  地址长度 = addressBuffer[1]
+    // 3--> IPv6  地址长度 = 16
     const addressType = addressBuffer[0];
     let addressLength = 0;
     let addressValueIndex = addressIndex + 1;
@@ -169,25 +169,25 @@ function processVLHeader(VLBuffer, userID) {
         case 3: {
             addressLength = 16;
             const dataView = new DataView(VLBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
-            // 2001:0db8:85a3:0000:0000:8a2e:0370:7334
+            // IPv6地址示例：2001:0db8:85a3:0000:0000:8a2e:0370:7334
             const ipv6 = [];
             for (let i = 0; i < 8; i++) {
                 ipv6.push(dataView.getUint16(i * 2).toString(16));
             }
             addressValue = ipv6.join(":");
-            // seems no need add [] for ipv6
+            // IPv6似乎不需要添加[]
             break;
         }
         default:
             return {
                 hasError: true,
-                message: `无效的地址类型: ${addressType}`,
+                message: `地址类型无效：${addressType}`,
             };
     }
     if (!addressValue) {
         return {
             hasError: true,
-            message: `地址值为空，地址类型为: ${addressType}`,
+            message: `地址值为空，地址类型：${addressType}`,
         };
     }
 
@@ -246,8 +246,8 @@ async function handleUDPOutBound(webSocket, VLResponseHeader, log) {
     const transformStream = new TransformStream({
         start(controller) { },
         transform(chunk, controller) {
-            // udp message 2 byte is the the length of udp data
-            // TODO: this should have bug, beacsue maybe udp chunk can be in two websocket message
+            // UDP消息的前2字节是UDP数据的长度
+            // TODO: 这里可能有bug，因为UDP数据块可能分布在两个WebSocket消息中
             for (let index = 0; index < chunk.byteLength;) {
                 const lengthBuffer = chunk.slice(index, index + 2);
                 const udpPakcetLength = new DataView(lengthBuffer).getUint16(0);
@@ -259,13 +259,13 @@ async function handleUDPOutBound(webSocket, VLResponseHeader, log) {
         flush(controller) { },
     });
 
-    // only handle dns udp for now
+    // 目前只处理DNS UDP
     transformStream.readable
         .pipeTo(
             new WritableStream({
                 async write(chunk) {
                     const resp = await fetch(
-                        globalConfig.dohURL, // dns server url
+                        globalConfig.dohURL, // DNS服务器URL
                         {
                             method: "POST",
                             headers: {
@@ -291,7 +291,7 @@ async function handleUDPOutBound(webSocket, VLResponseHeader, log) {
             })
         )
         .catch((error) => {
-            log("DNS UDP 发生错误" + error);
+            log("DNS UDP出现错误：" + error);
         });
 
     const writer = transformStream.writable.getWriter();

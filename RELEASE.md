@@ -1,13 +1,6 @@
-# ⚙️ 错误修复和改进
+# ⚙️ Bug fixes and Improvements
 
-- 移除了 `Normal` 订阅，由于效率低下和用户错误，并将 `Full Normal` 重命名为 `Normal`
-- 移除了对一些过时客户端的支持，这些客户端不同步核心更新或导入后修改配置，如 `Hiddify`
-- 更改了一些订阅URL
-- 在面板中添加了帮助引用
-- 重构了项目
-- 更新了文档
-- 修复错误 #1022
-- 修复错误，自定义规则IP CIDR验证
-
-> [!CAUTION]
-> 一些订阅URL已更改，因此您需要重新从面板获取新的订阅。
+- Revised sing-box DNS syntax due to recent changes
+- Validate panel remote DNS entry
+- Updated docs
+- Bug fix, NPM package removed #1045

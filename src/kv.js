@@ -22,7 +22,7 @@ export async function getDataset(request, env) {
         return { settings, warpConfigs }
     } catch (error) {
         console.log(error);
-        throw new Error(`获取 KV 时发生错误 - ${error.message}`);
+        throw new Error(`获取KV数据时出错 - ${error.message}`);
     }
 }
 
@@ -35,7 +35,7 @@ export async function updateDataset(request, env) {
             currentSettings = await env.kv.get("proxySettings", { type: 'json' });
         } catch (error) {
             console.log(error);
-            throw new Error(`获取当前 KV 设置时发生错误 - ${error}`);
+            throw new Error(`获取当前KV设置时出错 - ${error}`);
         }
     }
 
@@ -67,7 +67,7 @@ export async function updateDataset(request, env) {
         remoteDNS,
         dohHost: await initDoh(),
         localDNS: populateField('localDNS', '114.114.114.114'),
-        antiSanctionDNS: populateField('antiSanctionDNS', '8.8.4.4'),
+        antiSanctionDNS: populateField('antiSanctionDNS', '8.8.8.8'),
         VLTRFakeDNS: populateField('VLTRFakeDNS', false),
         proxyIPMode: populateField('proxyIPMode', 'proxyip'),
         proxyIPs: populateField('proxyIPs', []),
@@ -141,7 +141,7 @@ export async function updateDataset(request, env) {
         await env.kv.put("proxySettings", JSON.stringify(settings));
     } catch (error) {
         console.log(error);
-        throw new Error(`更新 KV 时发生错误 - ${error}`);
+        throw new Error(`更新KV数据时出错 - ${error}`);
     }
 
     return settings;

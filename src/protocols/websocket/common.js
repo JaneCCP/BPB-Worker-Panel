@@ -24,7 +24,7 @@ export async function handleTCPOutBound(
         remoteSocket.value = tcpSocket;
         log(`已连接到 ${address}:${port}`);
         const writer = tcpSocket.writable.getWriter();
-        await writer.write(rawClientData); // first write, nomal is tls client hello
+        await writer.write(rawClientData); // 首次写入，通常是TLS客户端hello
         writer.releaseLock();
         return tcpSocket;
     }
@@ -63,7 +63,7 @@ export async function handleTCPOutBound(
         }
 
         tcpSocket.closed.catch(error => {
-            console.log('重试 tcpSocket 关闭错误', error);
+            console.log('重试TCP套接字关闭错误', error);
         }).finally(() => {
             safeCloseWebSocket(webSocket);
         });
@@ -75,15 +75,15 @@ export async function handleTCPOutBound(
         const tcpSocket = await connectAndWrite(addressRemote, portRemote);
         remoteSocketToWS(tcpSocket, webSocket, VLResponseHeader, retry, log);
     } catch (error) {
-        console.error('连接失败:', err);
+        console.error('连接失败:', error);
         webSocket.close(1011, '连接失败');
     }
 }
 
 async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry, log) {
-    // remote--> ws
+    // 远程套接字 --> WebSocket
     let VLHeader = VLResponseHeader;
-    let hasIncomingData = false; // check if remoteSocket has incoming data
+    let hasIncomingData = false; // 检查远程套接字是否有传入数据
     await remoteSocket.readable
         .pipeTo(
             new WritableStream({
@@ -92,37 +92,37 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
                     hasIncomingData = true;
                     // remoteChunkCount++;
                     if (webSocket.readyState !== WS_READY_STATE_OPEN) {
-                        controller.error("webSocket.readyState 未打开，可能已关闭");
+                        controller.error("WebSocket状态不是打开状态，可能已关闭");
                     }
                     if (VLHeader) {
                         webSocket.send(await new Blob([VLHeader, chunk]).arrayBuffer());
                         VLHeader = null;
                     } else {
-                        // seems no need rate limit this, CF seems fix this??..
+                        // 似乎不需要限制速率，CF似乎修复了这个问题？
                         // if (remoteChunkCount > 20000) {
-                        // 	// cf one package is 4096 byte(4kb),  4096 * 20000 = 80M
+                        // 	// CF一个包是4096字节（4kb），4096 * 20000 = 80M
                         // 	await delay(1);
                         // }
                         webSocket.send(chunk);
                     }
                 },
                 close() {
-                    log(`远程连接!.readable 已关闭，hasIncomingData 为 ${hasIncomingData}`);
-                    // safeCloseWebSocket(webSocket); // no need server close websocket frist for some case will casue HTTP ERR_CONTENT_LENGTH_MISMATCH issue, client will send close event anyway.
+                    log(`远程连接可读流已关闭，hasIncomingData为 ${hasIncomingData}`);
+                    // safeCloseWebSocket(webSocket); // 不需要服务器先关闭WebSocket，某些情况下会导致HTTP ERR_CONTENT_LENGTH_MISMATCH问题，客户端会发送关闭事件
                 },
                 abort(reason) {
-                    console.error(`远程连接!.readable 中止`, reason);
+                    console.error(`远程连接可读流中止`, reason);
                 },
             })
         )
         .catch((error) => {
-            console.error(`VLRemoteSocketToWS 发生异常 `, error.stack || error);
+            console.error(`VL远程Socket到WS发生异常 `, error.stack || error);
             safeCloseWebSocket(webSocket);
         });
 
-    // seems is cf connect socket have error,
-    // 1. Socket.closed will have error
-    // 2. Socket.readable will be close without any data coming
+    // 似乎是CF连接套接字有错误，
+    // 1. Socket.closed会有错误
+    // 2. Socket.readable会在没有任何数据传入的情况下关闭
     if (hasIncomingData === false && retry) {
         log(`重试`);
         retry();
@@ -141,12 +141,12 @@ export function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, lo
                 controller.enqueue(message);
             });
 
-            // The event means that the client closed the client -> server stream.
-            // However, the server -> client stream is still open until you call close() on the server side.
-            // The WebSocket protocol says that a separate close message must be sent in each direction to fully close the socket.
+            // 该事件意味着客户端关闭了客户端 -> 服务器流。
+            // 但是，服务器 -> 客户端流仍然打开，直到您在服务器端调用close()。
+            // WebSocket协议规定必须在每个方向发送单独的关闭消息才能完全关闭套接字。
             webSocketServer.addEventListener("close", () => {
-                // client send close, need close server
-                // if stream is cancel, skip controller.close
+                // 客户端发送关闭，需要关闭服务器
+                // 如果流被取消，跳过controller.close
                 safeCloseWebSocket(webSocketServer);
                 if (readableStreamCancel) {
                     return;
@@ -154,10 +154,10 @@ export function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, lo
                 controller.close();
             });
             webSocketServer.addEventListener("error", (err) => {
-                log("webSocketServer 发生错误");
+                log("WebSocket服务器发生错误");
                 controller.error(err);
             });
-            // for ws 0rtt
+            // 用于WebSocket 0-RTT
             const { earlyData, error } = base64ToArrayBuffer(earlyDataHeader);
             if (error) {
                 controller.error(error);
@@ -166,17 +166,17 @@ export function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, lo
             }
         },
         pull(controller) {
-            // if ws can stop read if stream is full, we can implement backpressure
+            // 如果WebSocket可以在流满时停止读取，我们可以实现背压
             // https://streams.spec.whatwg.org/#example-rs-push-backpressure
         },
         cancel(reason) {
-            // 1. pipe WritableStream has error, this cancel will called, so ws handle server close into here
-            // 2. if readableStream is cancel, all controller.close/enqueue need skip,
-            // 3. but from testing controller.error still work even if readableStream is cancel
+            // 1. 管道WritableStream有错误，会调用此cancel，所以WebSocket处理服务器关闭到这里
+            // 2. 如果readableStream被取消，所有controller.close/enqueue需要跳过，
+            // 3. 但从测试来看，即使readableStream被取消，controller.error仍然有效
             if (readableStreamCancel) {
                 return;
             }
-            log(`ReadableStream 已取消，原因: ${reason}`);
+            log(`可读流被取消，原因：${reason}`);
             readableStreamCancel = true;
             safeCloseWebSocket(webSocketServer);
         },
@@ -190,7 +190,7 @@ function base64ToArrayBuffer(base64Str) {
         return { earlyData: null, error: null };
     }
     try {
-        // go use modified Base64 for URL rfc4648 which js atob not support
+        // Go使用修改的Base64用于URL rfc4648，JS的atob不支持
         base64Str = base64Str.replace(/-/g, '+').replace(/_/g, '/');
         const decode = atob(base64Str);
         const arryBuffer = Uint8Array.from(decode, (c) => c.charCodeAt(0));
@@ -206,7 +206,7 @@ export function safeCloseWebSocket(socket) {
             socket.close();
         }
     } catch (error) {
-        console.error('safeCloseWebSocket 错误', error);
+        console.error('安全关闭WebSocket错误', error);
     }
 }
 
@@ -217,7 +217,7 @@ async function getDynamicProxyIP(address, prefix) {
         if (ipv4.length) {
             finalAddress = ipv4[0];
         } else {
-            throw new Error('无法在DNS记录中找到IPv4');
+            throw new Error('在DNS记录中找不到IPv4地址');
         }
     }
 

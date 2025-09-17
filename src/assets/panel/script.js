@@ -151,7 +151,7 @@ async function getIpDetails(ip) {
         if (!success) throw new Error(`status ${status} - ${message}`);
         return body;
     } catch (error) {
-        console.error("获取IP错误:", error.message || error)
+        console.error("获取IP信息错误:", error.message || error)
     }
 }
 
@@ -170,7 +170,7 @@ async function fetchIPInfo() {
         const response = await fetch('https://ipwho.is/' + '?nocache=' + Date.now(), { cache: "no-store" });
         const data = await response.json();
         const { success, ip, message } = data;
-        if (!success) throw new Error(`获取其他目标IP失败 ${response.url} - ${message}`);
+        if (!success) throw new Error(`获取其他目标IP失败于 ${response.url} - ${message}`);
         const { country, countryCode, city, isp } = await getIpDetails(ip);
         updateUI(ip, country, countryCode, city, isp);
         refreshIcon.classList.remove('fa-spin');
@@ -182,7 +182,7 @@ async function fetchIPInfo() {
         const response = await fetch('https://ipv4.icanhazip.com/?nocache=' + Date.now(), { cache: "no-store" });
         if (!response.ok) {
             const errorMessage = await response.text();
-            throw new Error(`获取Cloudflare目标IP失败，状态 ${response.status} 在 ${response.url} - ${errorMessage}`);
+            throw new Error(`获取Cloudflare目标IP失败，状态码 ${response.status} 于 ${response.url} - ${errorMessage}`);
         }
 
         const ip = await response.text();
@@ -312,7 +312,7 @@ async function updateWarpConfigs() {
             throw new Error(`status ${status} - ${message}`);
         }
 
-        alert('✅ Warp 配置更新成功！');
+        alert('✅ Warp配置更新成功！');
     } catch (error) {
         console.error("更新Warp配置错误:", error.message || error)
     }
@@ -408,6 +408,7 @@ function validateSettings() {
     });
 
     const validations = [
+        validateRemoteDNS(),
         validateMultipleHostNames(elementsToCheck),
         validateProxyIPs(),
         validateNAT64Prefixes(),
@@ -493,6 +494,49 @@ function updateSettings(event, data) {
         });
 }
 
+function validateRemoteDNS() {
+    let url;
+    const dns = document.getElementById("remoteDNS").value.trim();
+    try {
+        url = new URL(dns);
+    } catch (error) {
+        alert("⛔ 无效的DNS，请输入一个URL。");
+        return false;
+    }
+
+    const cloudflareDNS = [
+        '1.1.1.1',
+        '1.0.0.1',
+        '1.1.1.2',
+        '1.0.0.2',
+        '1.1.1.3',
+        '1.0.0.3',
+        '2606:4700:4700::1111',
+        '2606:4700:4700::1001',
+        '2606:4700:4700::1112',
+        '2606:4700:4700::1002',
+        '2606:4700:4700::1113',
+        '2606:4700:4700::1003',
+        'cloudflare-dns.com',
+        'security.cloudflare-dns.com',
+        'family.cloudflare-dns.com',
+        'one.one.one.one',
+        '1dot1dot1dot1'
+    ];
+
+    if (!["tcp:", "https:", "tls:"].includes(url.protocol)) {
+        alert("⛔ 请输入TCP、DoH或DoT服务器。");
+        return false;
+    }
+
+    if (cloudflareDNS.includes(url.hostname)) {
+        alert("⛔ Cloudflare DNS不允许用于workers。\n💡 请使用其他公共DNS服务器，如Google、Adguard等...");
+        return false;
+    }
+
+    return true;
+}
+
 function validateSanctionDns() {
     const value = document.getElementById("antiSanctionDNS").value.trim();
 
@@ -548,7 +592,7 @@ function validateCustomRules() {
         .filter(value => value && !ipv4CidrRegex.test(value) && !ipv6CidrRegex.test(value) && !domainRegex.test(value));
 
     if (invalidValues.length) {
-        alert('⛔ 无效的IP、域名或IP范围。\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
+        alert('⛔ 无效的IP、域名或IP范围。\n💡 请在每行输入一个值。\n\n' + invalidValues.map(ip => `⚠️ ${ip}`).join('\n'));
         return false;
     }
 
@@ -738,7 +782,7 @@ function logout(event) {
             if (!success) throw new Error(`status ${status} - ${message}`);
             window.location.href = '/login';
         })
-        .catch(error => console.error("退出登录错误:", error.message || error));
+        .catch(error => console.error("登出错误:", error.message || error));
 }
 
 document.querySelectorAll(".toggle-password").forEach(toggle => {

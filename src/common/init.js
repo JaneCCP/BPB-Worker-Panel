@@ -36,7 +36,7 @@ export function initHttp(request, env) {
     const searchParams = new URLSearchParams(search);
 
     if (!['/secrets', '/favicon.ico'].includes(pathname)) {
-        if (!userID || !TrPass) throw new Error(`请先设置UUID和${atob('VHJvamFu')}密码，请访问<a href="${origin}/secrets" target="_blank">这里</a>生成它们。`, { cause: "init" });
+        if (!userID || !TrPass) throw new Error(`请先设置UUID和${atob('VHJvamFu')}密码。请访问<a href="${origin}/secrets" target="_blank">这里</a>生成它们。`, { cause: "init" });
         if (!isValidUUID(userID)) throw new Error(`无效的UUID: ${userID}`, { cause: "init" });
         if (typeof kv !== 'object') throw new Error(`KV数据集未正确设置！请参考<a href="${atob('aHR0cHM6Ly9iaWEtcGFpbi1iYWNoZS5naXRodWIuaW8vQlBCLVdvcmtlci1QYW5lbC8=')}" target="_blank">教程</a>。`, { cause: "init" });
     }

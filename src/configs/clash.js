@@ -292,7 +292,7 @@ function buildClashChainOutbound() {
 
     const { server, port, uuid, flow, security, type, sni, fp, alpn, pbk, sid, headerType, host, path, serviceName } = outProxyParams;
     const chainOutbound = {
-        "name": "💦 Chain Best Ping 💥",
+        "name": "💦 链式最佳延迟 💥",
         "type": atob('dmxlc3M='),
         "server": server,
         "port": +port,
