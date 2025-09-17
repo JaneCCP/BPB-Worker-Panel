@@ -23,9 +23,9 @@ export async function handleTCPOutBound(
             port: port,
         });
         
-        // 设置 30 秒超时
+        // 设置 15 秒超时，更短的超时时间
         const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('连接超时')), 30000);
+            setTimeout(() => reject(new Error('连接超时')), 15000);
         });
         
         const tcpSocket = await Promise.race([connectPromise, timeoutPromise]);
@@ -100,26 +100,38 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
     // remote--> ws
     let VLHeader = VLResponseHeader;
     let hasIncomingData = false; // check if remoteSocket has incoming data
-    await remoteSocket.readable
+    
+    // 添加超时处理，防止 pipeTo 挂起
+    const pipeTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('数据传输超时')), 20000); // 20秒超时
+    });
+    
+    const pipePromise = remoteSocket.readable
         .pipeTo(
             new WritableStream({
                 start() { },
                 async write(chunk, controller) {
-                    hasIncomingData = true;
-                    // remoteChunkCount++;
-                    if (webSocket.readyState !== WS_READY_STATE_OPEN) {
-                        controller.error("webSocket.readyState 未打开，可能已关闭");
-                    }
-                    if (VLHeader) {
-                        webSocket.send(await new Blob([VLHeader, chunk]).arrayBuffer());
-                        VLHeader = null;
-                    } else {
-                        // seems no need rate limit this, CF seems fix this??..
-                        // if (remoteChunkCount > 20000) {
-                        // 	// cf one package is 4096 byte(4kb),  4096 * 20000 = 80M
-                        // 	await delay(1);
-                        // }
-                        webSocket.send(chunk);
+                    try {
+                        hasIncomingData = true;
+                        // remoteChunkCount++;
+                        if (webSocket.readyState !== WS_READY_STATE_OPEN) {
+                            controller.error("webSocket.readyState 未打开，可能已关闭");
+                            return;
+                        }
+                        if (VLHeader) {
+                            webSocket.send(await new Blob([VLHeader, chunk]).arrayBuffer());
+                            VLHeader = null;
+                        } else {
+                            // seems no need rate limit this, CF seems fix this??..
+                            // if (remoteChunkCount > 20000) {
+                            // 	// cf one package is 4096 byte(4kb),  4096 * 20000 = 80M
+                            // 	await delay(1);
+                            // }
+                            webSocket.send(chunk);
+                        }
+                    } catch (writeError) {
+                        log(`写入 WebSocket 错误: ${writeError.message}`);
+                        controller.error(writeError);
                     }
                 },
                 close() {
@@ -130,11 +142,21 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
                     console.error(`远程连接!.readable 中止`, reason);
                 },
             })
-        )
-        .catch((error) => {
-            console.error(`VLRemoteSocketToWS 发生异常 `, error.stack || error);
-            safeCloseWebSocket(webSocket);
-        });
+        );
+    
+    try {
+        await Promise.race([pipePromise, pipeTimeout]);
+    } catch (error) {
+        console.error(`VLRemoteSocketToWS 发生异常 `, error.stack || error);
+        safeCloseWebSocket(webSocket);
+        
+        // 如果是超时错误且没有数据，尝试重试
+        if (error.message === '数据传输超时' && hasIncomingData === false && retry) {
+            log(`数据传输超时，尝试重试`);
+            retry();
+            return;
+        }
+    }
 
     // seems is cf connect socket have error,
     // 1. Socket.closed will have error
@@ -229,11 +251,21 @@ export function safeCloseWebSocket(socket) {
 async function getDynamicProxyIP(address, prefix) {
     let finalAddress = address;
     if (!isIPv4(address)) {
-        const { ipv4 } = await resolveDNS(address, true);
-        if (ipv4.length) {
-            finalAddress = ipv4[0];
-        } else {
-            throw new Error('无法在DNS记录中找到IPv4');
+        // 添加 DNS 解析超时
+        const dnsTimeout = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('DNS解析超时')), 5000); // 5秒超时
+        });
+        
+        try {
+            const dnsPromise = resolveDNS(address, true);
+            const { ipv4 } = await Promise.race([dnsPromise, dnsTimeout]);
+            if (ipv4.length) {
+                finalAddress = ipv4[0];
+            } else {
+                throw new Error('无法在DNS记录中找到IPv4');
+            }
+        } catch (error) {
+            throw new Error(`DNS解析失败: ${error.message}`);
         }
     }
 

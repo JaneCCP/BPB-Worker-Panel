@@ -22,6 +22,18 @@ export async function VlOverWSHandler(request) {
     };
     let udpStreamWrite = null;
     let isDns = false;
+    
+    // 添加 WebSocket 超时处理
+    const wsTimeout = setTimeout(() => {
+        log('WebSocket 处理超时，强制关闭连接');
+        try {
+            if (webSocket.readyState === WS_READY_STATE_OPEN) {
+                webSocket.close(1011, 'WebSocket处理超时');
+            }
+        } catch (e) {
+            console.error('关闭超时 WebSocket 时出错:', e);
+        }
+    }, 30000); // 30秒总超时
 
     // ws --> remote
     readableWebSocketStream.pipeTo(new WritableStream({
@@ -115,6 +127,11 @@ export async function VlOverWSHandler(request) {
             if (webSocket.readyState === WS_READY_STATE_OPEN) {
                 webSocket.close(1011, 'Stream处理错误');
             }
+        })
+        .finally(() => {
+            // 清理超时定时器
+            clearTimeout(wsTimeout);
+            log('WebSocket 处理完成，清理资源');
         });
 
     return new Response(null, {

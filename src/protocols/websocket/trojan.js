@@ -17,6 +17,18 @@ export async function TrOverWSHandler(request) {
         value: null,
     };
     let udpStreamWrite = null;
+    
+    // 添加 WebSocket 超时处理
+    const wsTimeout = setTimeout(() => {
+        log('Trojan WebSocket 处理超时，强制关闭连接');
+        try {
+            if (webSocket.readyState === 1) { // OPEN
+                webSocket.close(1011, 'WebSocket处理超时');
+            }
+        } catch (e) {
+            console.error('关闭超时 WebSocket 时出错:', e);
+        }
+    }, 30000); // 30秒总超时
 
     readableWebSocketStream
         .pipeTo(
@@ -88,6 +100,11 @@ export async function TrOverWSHandler(request) {
             } catch (closeError) {
                 log("关闭 WebSocket 时出错", closeError);
             }
+        })
+        .finally(() => {
+            // 清理超时定时器
+            clearTimeout(wsTimeout);
+            log('Trojan WebSocket 处理完成，清理资源');
         });
 
     return new Response(null, {
