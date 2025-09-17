@@ -204,32 +204,107 @@ export async function fallback(request) {
 
 async function getMyIP(request) {
     const ip = (await request.text()).trim();
+    
+    // 创建超时控制器
+    const timeoutMs = 3000; // 5秒超时
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    // 备用 API 列表
+    const apis = [
+        {
+            url: `https://ipapi.co/${ip}/json/`,
+            transform: (data) => ({
+                status: 'success',
+                country: data.country_name,
+                countryCode: data.country_code,
+                region: data.region,
+                regionName: data.region,
+                city: data.city,
+                zip: data.postal,
+                lat: data.latitude,
+                lon: data.longitude,
+                timezone: data.timezone,
+                isp: data.org,
+                org: data.org,
+                as: data.asn,
+                query: data.ip
+            })
+        },
+        {
+            url: `http://ip-api.com/json/${ip}?lang=zh-CN`,
+            transform: (data) => data
+        },
+        {
+            url: `https://ipinfo.io/${ip}/json`,
+            transform: (data) => ({
+                status: 'success',
+                country: data.country,
+                countryCode: data.country,
+                region: data.region,
+                regionName: data.region,
+                city: data.city,
+                zip: data.postal,
+                lat: parseFloat(data.loc?.split(',')[0]) || 0,
+                lon: parseFloat(data.loc?.split(',')[1]) || 0,
+                timezone: data.timezone,
+                isp: data.org,
+                org: data.org,
+                as: data.org,
+                query: data.ip
+            })
+        }
+    ];
+    
     try {
-        const response = await fetch(`http://ip-api.com/json/${ip}?nocache=${Date.now()}&lang=zh-CN`);
+        // 并行请求所有 API，使用第一个成功的响应
+        const promises = apis.map(async (api) => {
+            try {
+                const response = await fetch(api.url, {
+                    signal: controller.signal,
+                    headers: {
+                        'User-Agent': 'BPB-Worker-Panel/1.0'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return api.transform(data);
+            } catch (error) {
+                throw new Error(`${api.url}: ${error.message}`);
+            }
+        });
         
-        // 检查响应状态
-        if (!response.ok) {
-            throw new Error(`API 请求失败: ${response.status} ${response.statusText}`);
-        }
+        // 使用 Promise.any 获取第一个成功的结果
+        const geoLocation = await Promise.any(promises);
+        clearTimeout(timeoutId);
         
-        // 检查响应内容类型
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            throw new Error(`API 返回非 JSON 格式数据: ${text.substring(0, 100)}`);
-        }
-        
-        const geoLocation = await response.json();
-        
-        // 检查 API 返回的错误状态
-        if (geoLocation.status === 'fail') {
-            throw new Error(`IP 查询失败: ${geoLocation.message || '未知错误'}`);
+        // 检查结果有效性
+        if (!geoLocation || (geoLocation.status && geoLocation.status === 'fail')) {
+            throw new Error('所有 API 都返回了无效数据');
         }
         
         return await respond(true, 200, null, geoLocation);
+        
     } catch (error) {
+        clearTimeout(timeoutId);
         console.error('获取IP地址时出错:', error);
-        return await respond(false, 500, `获取IP地址时出错: ${error.message || error}`)
+        
+        // 如果是超时错误，返回更友好的错误信息
+        if (error.name === 'AbortError') {
+            return await respond(false, 408, '请求超时，请稍后重试');
+        }
+        
+        // 如果所有 API 都失败，返回基本信息
+        if (error instanceof AggregateError) {
+            console.error('所有 IP API 都失败了:', error.errors);
+            return await respond(false, 503, '所有 IP 查询服务暂时不可用，请稍后重试');
+        }
+        
+        return await respond(false, 500, `获取IP地址时出错: ${error.message || error}`);
     }
 }
 
