@@ -213,10 +213,15 @@ async function getMyIP(request) {
     // 备用 API 列表 - 优先使用支持中文的服务
     const apis = [
         {
+            name: 'ip-api',
             url: `http://ip-api.com/json/${ip}?lang=zh-CN`,
-            transform: (data) => data
+            transform: (data) => ({
+                ...data,
+                apiSource: 'ip-api'
+            })
         },
         {
+            name: 'ipapi.co',
             url: `https://ipapi.co/${ip}/json/?lang=zh`,
             transform: (data) => ({
                 status: 'success',
@@ -232,7 +237,8 @@ async function getMyIP(request) {
                 isp: data.org,
                 org: data.org,
                 as: data.asn,
-                query: data.ip
+                query: data.ip,
+                apiSource: 'ipapi.co'
             })
         }
     ];
@@ -244,7 +250,7 @@ async function getMyIP(request) {
                 const response = await fetch(api.url, {
                     signal: controller.signal,
                     headers: {
-                        'User-Agent': 'BPB-Worker-Panel/1.0'
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                     }
                 });
                 
@@ -255,7 +261,7 @@ async function getMyIP(request) {
                 const data = await response.json();
                 return api.transform(data);
             } catch (error) {
-                throw new Error(`${api.url}: ${error.message}`);
+                throw new Error(`${api.name}: ${error.message}`);
             }
         });
         
