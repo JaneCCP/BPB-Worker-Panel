@@ -332,42 +332,34 @@ async function enableWorkersLogs() {
     console.log('📊 检查Workers日志配置状态...');
     try {
         console.log('📋 获取当前日志设置...');
-        // 先获取当前日志配置
-        const currentSettings = await cloudflare.workers.scripts.settings.get(
+        // 先获取当前日志配置 - 使用正确的端点
+        const currentSettings = await cloudflare.workers.scripts.scriptAndVersionSettings.get(
             CLOUDFLARE_WORKER_NAME,
             {
                 account_id: CLOUDFLARE_ACCOUNT_ID
             }
         );
         
-        // 检查日志是否已启用 - 改进检测逻辑
-        const hasObservability = currentSettings.observability && currentSettings.observability.enabled;
-        const hasLogs = currentSettings.observability && 
-            currentSettings.observability.logs && 
-            currentSettings.observability.logs.enabled;
-        const logsEnabled = hasObservability && hasLogs;
-        
-        // 调试输出当前配置状态
-        console.log('🔍 当前日志配置状态:');
-        console.log(`   - observability 存在: ${!!currentSettings.observability}`);
-        console.log(`   - observability.enabled: ${currentSettings.observability?.enabled}`);
-        console.log(`   - logs 存在: ${!!(currentSettings.observability?.logs)}`);
-        console.log(`   - logs.enabled: ${currentSettings.observability?.logs?.enabled}`);
-        console.log(`   - 综合判断结果: ${logsEnabled ? '已启用' : '未启用'}`);
+        // 检查日志是否已启用 - 修正检查逻辑
+        const logsEnabled = currentSettings.result && 
+            currentSettings.result.observability && 
+            currentSettings.result.observability.logs && 
+            currentSettings.result.observability.logs.enabled;
         
         if (logsEnabled) {
             console.log('✅ 检测到Workers日志已启用！');
             console.log('📋 当前日志配置详情:');
-            console.log(`   - 可观测性: ${currentSettings.observability?.enabled ? '✅ 已启用' : '❌ 未启用'}`);
-            console.log(`   - 日志记录: ${currentSettings.observability?.logs?.enabled ? '✅ 已启用' : '❌ 未启用'}`);
-            console.log(`   - 调用日志: ${currentSettings.observability?.logs?.invocation_logs ? '✅ 已启用' : '❌ 未启用'}`);
-            console.log(`   - 采样率: ${(currentSettings.observability?.logs?.head_sampling_rate * 100) || 0}%`);
-            console.log(`   - Logpush: ${currentSettings.logpush ? '✅ 已启用' : '❌ 未启用'}`);
+            const obs = currentSettings.result.observability;
+            console.log(`   - 可观测性: ${obs.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 日志记录: ${obs.logs.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 调用日志: ${obs.logs.invocation_logs ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 采样率: ${(obs.logs.head_sampling_rate * 100)}%`);
+            console.log(`   - Logpush: ${currentSettings.result.logpush ? '✅ 已启用' : '❌ 未启用'}`);
         } else {
             console.log('⚠️ 检测到Workers日志未启用');
             console.log('📝 正在启用Workers日志功能...');
             // 根据 settings.ts 接口使用官方标准的完整配置结构
-            const logResult = await cloudflare.workers.scripts.settings.edit(
+            const logResult = await cloudflare.workers.scripts.scriptAndVersionSettings.edit(
                 CLOUDFLARE_WORKER_NAME,
                 {
                     account_id: CLOUDFLARE_ACCOUNT_ID,
@@ -385,14 +377,15 @@ async function enableWorkersLogs() {
                 }
             );
             
-            if (logResult.observability && logResult.observability.logs && logResult.observability.logs.enabled) {
+            if (logResult.result && logResult.result.observability && logResult.result.observability.logs && logResult.result.observability.logs.enabled) {
                 console.log('✅ Workers日志启用成功！');
                 console.log('📋 新的日志配置详情:');
-                console.log(`   - 可观测性: ${logResult.observability.enabled ? '✅ 已启用' : '❌ 未启用'}`);
-                console.log(`   - 日志记录: ${logResult.observability.logs.enabled ? '✅ 已启用' : '❌ 未启用'}`);
-                console.log(`   - 调用日志: ${logResult.observability.logs.invocation_logs ? '✅ 已启用' : '❌ 未启用'}`);
-                console.log(`   - 采样率: ${(logResult.observability.logs.head_sampling_rate * 100)}%`);
-                console.log(`   - Logpush: ${logResult.logpush ? '✅ 已启用' : '❌ 未启用'}`);
+                const obs = logResult.result.observability;
+                console.log(`   - 可观测性: ${obs.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+                console.log(`   - 日志记录: ${obs.logs.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+                console.log(`   - 调用日志: ${obs.logs.invocation_logs ? '✅ 已启用' : '❌ 未启用'}`);
+                console.log(`   - 采样率: ${(obs.logs.head_sampling_rate * 100)}%`);
+                console.log(`   - Logpush: ${logResult.result.logpush ? '✅ 已启用' : '❌ 未启用'}`);
             } else {
                 console.log('❌ Workers日志启用失败');
                 console.log('⚠️ 请检查账户权限或手动在控制台中启用');
