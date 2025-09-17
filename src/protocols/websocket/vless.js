@@ -26,65 +26,80 @@ export async function VlOverWSHandler(request) {
     // ws --> remote
     readableWebSocketStream.pipeTo(new WritableStream({
         async write(chunk) {
-            if (isDns && udpStreamWrite) {
-                return udpStreamWrite(chunk);
-            }
-
-            if (remoteSocketWapper.value) {
-                const writer = remoteSocketWapper.value.writable.getWriter();
-                await writer.write(chunk);
-                writer.releaseLock();
-                return;
-            }
-
-            const {
-                hasError,
-                message,
-                portRemote = 443,
-                addressRemote = "",
-                rawDataIndex,
-                VLVersion = new Uint8Array([0, 0]),
-                isUDP,
-            } = processVLHeader(chunk, globalConfig.userID);
-            
-            address = addressRemote;
-            portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? "udp " : "tcp "} `;
-            
-            if (hasError) {
-                // controller.error(message);
-                throw new Error(message); // cf seems has bug, controller.error will not end stream
-                // webSocket.close(1000, message);
-                // return;
-            }
-            
-            // ["version", "附加信息长度 N"]
-            const VLResponseHeader = new Uint8Array([VLVersion[0], 0]);
-            const rawClientData = chunk.slice(rawDataIndex);
-            
-            // if UDP but port not DNS port, close it
-            if (isUDP) {
-                if (portRemote === 53) {
-                    isDns = true;
-                    const { write } = await handleUDPOutBound(webSocket, VLResponseHeader, log);
-                    udpStreamWrite = write;
-                    udpStreamWrite(rawClientData);
-                    return;
-                } else {
-                    // controller.error('UDP proxy only enable for DNS which is port 53');
-                    throw new Error("UDP代理仅支持DNS，端口为53"); // cf seems has bug, controller.error will not end stream
-                    // return;
+            try {
+                if (isDns && udpStreamWrite) {
+                    return udpStreamWrite(chunk);
                 }
-            }
 
-            handleTCPOutBound(
-                remoteSocketWapper,
-                addressRemote,
-                portRemote,
-                rawClientData,
-                webSocket,
-                VLResponseHeader,
-                log
-            );
+                if (remoteSocketWapper.value) {
+                    const writer = remoteSocketWapper.value.writable.getWriter();
+                    await writer.write(chunk);
+                    writer.releaseLock();
+                    return;
+                }
+
+                const {
+                    hasError,
+                    message,
+                    portRemote = 443,
+                    addressRemote = "",
+                    rawDataIndex,
+                    VLVersion = new Uint8Array([0, 0]),
+                    isUDP,
+                } = processVLHeader(chunk, globalConfig.userID);
+                
+                address = addressRemote;
+                portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? "udp " : "tcp "} `;
+                
+                if (hasError) {
+                    log(`VLESS 头部解析错误: ${message}`);
+                    webSocket.close(1002, message);
+                    return;
+                }
+                
+                // ["version", "附加信息长度 N"]
+                const VLResponseHeader = new Uint8Array([VLVersion[0], 0]);
+                const rawClientData = chunk.slice(rawDataIndex);
+                
+                // if UDP but port not DNS port, close it
+                if (isUDP) {
+                    if (portRemote === 53) {
+                        isDns = true;
+                        try {
+                            const { write } = await handleUDPOutBound(webSocket, VLResponseHeader, log);
+                            udpStreamWrite = write;
+                            udpStreamWrite(rawClientData);
+                        } catch (udpError) {
+                            log(`UDP 处理错误: ${udpError.message}`);
+                            webSocket.close(1011, 'UDP处理失败');
+                        }
+                        return;
+                    } else {
+                        log(`不支持的UDP端口: ${portRemote}`);
+                        webSocket.close(1002, "UDP代理仅支持DNS，端口为53");
+                        return;
+                    }
+                }
+
+                // 添加 TCP 连接超时处理
+                try {
+                    await handleTCPOutBound(
+                        remoteSocketWapper,
+                        addressRemote,
+                        portRemote,
+                        rawClientData,
+                        webSocket,
+                        VLResponseHeader,
+                        log
+                    );
+                } catch (tcpError) {
+                    log(`TCP 连接错误: ${tcpError.message}`);
+                    webSocket.close(1011, 'TCP连接失败');
+                }
+            } catch (error) {
+                log(`写入流错误: ${error.message}`);
+                webSocket.close(1011, '处理错误');
+            }
         },
         close() {
             log(`readableWebSocketStream 已关闭`);
@@ -96,6 +111,10 @@ export async function VlOverWSHandler(request) {
     )
         .catch((err) => {
             log("readableWebSocketStream pipeTo 错误", err);
+            // 确保 WebSocket 被关闭
+            if (webSocket.readyState === WS_READY_STATE_OPEN) {
+                webSocket.close(1011, 'Stream处理错误');
+            }
         });
 
     return new Response(null, {
@@ -264,28 +283,44 @@ async function handleUDPOutBound(webSocket, VLResponseHeader, log) {
         .pipeTo(
             new WritableStream({
                 async write(chunk) {
-                    const resp = await fetch(
-                        globalConfig.dohURL, // dns server url
-                        {
-                            method: "POST",
-                            headers: {
-                                "content-type": "application/dns-message",
-                            },
-                            body: chunk,
+                    // 添加 DoH 请求超时处理
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+                    
+                    try {
+                        const resp = await fetch(
+                            globalConfig.dohURL, // dns server url
+                            {
+                                method: "POST",
+                                headers: {
+                                    "content-type": "application/dns-message",
+                                },
+                                body: chunk,
+                                signal: controller.signal
+                            }
+                        );
+                        clearTimeout(timeoutId);
+                        const dnsQueryResult = await resp.arrayBuffer();
+                        const udpSize = dnsQueryResult.byteLength;
+                        // console.log([...new Uint8Array(dnsQueryResult)].map((x) => x.toString(16)));
+                        const udpSizeBuffer = new Uint8Array([(udpSize >> 8) & 0xff, udpSize & 0xff]);
+                        if (webSocket.readyState === WS_READY_STATE_OPEN) {
+                            log(`DoH成功，DNS消息长度为 ${udpSize}`);
+                            if (isVLHeaderSent) {
+                                webSocket.send(await new Blob([udpSizeBuffer, dnsQueryResult]).arrayBuffer());
+                            } else {
+                                webSocket.send(await new Blob([VLResponseHeader, udpSizeBuffer, dnsQueryResult]).arrayBuffer());
+                                isVLHeaderSent = true;
+                            }
                         }
-                    );
-                    const dnsQueryResult = await resp.arrayBuffer();
-                    const udpSize = dnsQueryResult.byteLength;
-                    // console.log([...new Uint8Array(dnsQueryResult)].map((x) => x.toString(16)));
-                    const udpSizeBuffer = new Uint8Array([(udpSize >> 8) & 0xff, udpSize & 0xff]);
-                    if (webSocket.readyState === WS_READY_STATE_OPEN) {
-                        log(`DoH成功，DNS消息长度为 ${udpSize}`);
-                        if (isVLHeaderSent) {
-                            webSocket.send(await new Blob([udpSizeBuffer, dnsQueryResult]).arrayBuffer());
-                        } else {
-                            webSocket.send(await new Blob([VLResponseHeader, udpSizeBuffer, dnsQueryResult]).arrayBuffer());
-                            isVLHeaderSent = true;
+                    } catch (fetchError) {
+                        clearTimeout(timeoutId);
+                        log(`DoH 请求失败: ${fetchError.message}`);
+                        // 发送错误响应而不是挂起
+                        if (webSocket.readyState === WS_READY_STATE_OPEN) {
+                            webSocket.close(1011, 'DNS查询失败');
                         }
+                        return;
                     }
                 },
             })

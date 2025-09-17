@@ -16,16 +16,32 @@ export async function handleTCPOutBound(
 ) {
     async function connectAndWrite(address, port) {
         // if (/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(address)) address = `${atob('d3d3Lg==')}${address}${atob('LnNzbGlwLmlv')}`;
-        const tcpSocket = connect({
+        
+        // 添加连接超时处理
+        const connectPromise = connect({
             hostname: address,
             port: port,
         });
-
+        
+        // 设置 30 秒超时
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('连接超时')), 30000);
+        });
+        
+        const tcpSocket = await Promise.race([connectPromise, timeoutPromise]);
+        
         remoteSocket.value = tcpSocket;
         log(`已连接到 ${address}:${port}`);
-        const writer = tcpSocket.writable.getWriter();
-        await writer.write(rawClientData); // first write, nomal is tls client hello
-        writer.releaseLock();
+        
+        try {
+            const writer = tcpSocket.writable.getWriter();
+            await writer.write(rawClientData); // first write, nomal is tls client hello
+            writer.releaseLock();
+        } catch (writeError) {
+            log(`写入数据失败: ${writeError.message}`);
+            throw writeError;
+        }
+        
         return tcpSocket;
     }
 
@@ -75,7 +91,7 @@ export async function handleTCPOutBound(
         const tcpSocket = await connectAndWrite(addressRemote, portRemote);
         remoteSocketToWS(tcpSocket, webSocket, VLResponseHeader, retry, log);
     } catch (error) {
-        console.error('连接失败:', err);
+        console.error('连接失败:', error);
         webSocket.close(1011, '连接失败');
     }
 }
