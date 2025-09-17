@@ -221,24 +221,24 @@ async function getMyIP(request) {
             })
         },
         {
-            name: 'ipapi.co',
-            url: `https://ipapi.co/${ip}/json/?lang=zh`,
+            name: 'ip9.com.cn',
+            url: `https://ip9.com.cn/get?ip=${ip}`,
             transform: (data) => ({
                 status: 'success',
-                country: data.country_name,
-                countryCode: data.country_code,
-                region: data.region,
-                regionName: data.region,
-                city: data.city,
-                zip: data.postal,
-                lat: data.latitude,
-                lon: data.longitude,
-                timezone: data.timezone,
-                isp: data.org,
-                org: data.org,
-                as: data.asn,
-                query: data.ip,
-                apiSource: 'ipapi.co'
+                country: data.data.country,
+                countryCode: data.data.country_code,
+                region: data.data.prov,
+                regionName: data.data.prov,
+                city: data.data.city,
+                zip: data.data.post_code,
+                lat: parseFloat(data.data.lat) || 0,
+                lon: parseFloat(data.data.lng) || 0,
+                timezone: '',
+                isp: data.data.isp,
+                org: data.data.isp,
+                as: data.data.isp,
+                query: data.data.ip,
+                apiSource: 'ip9.com.cn'
             })
         }
     ];
@@ -250,7 +250,18 @@ async function getMyIP(request) {
                 const response = await fetch(api.url, {
                     signal: controller.signal,
                     headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache',
+                        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                        'Sec-Ch-Ua-Mobile': '?0',
+                        'Sec-Ch-Ua-Platform': '"Windows"',
+                        'Sec-Fetch-Dest': 'empty',
+                        'Sec-Fetch-Mode': 'cors',
+                        'Sec-Fetch-Site': 'cross-site'
                     }
                 });
                 
