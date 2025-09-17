@@ -15,25 +15,58 @@ export let settings = {}
 export async function handleWebsocket(request) {
     const encodedPathConfig = globalConfig.pathName.replace("/", "") || '';
 
-    try {
-        const { protocol, mode, panelIPs } = JSON.parse(atob(encodedPathConfig));
-        Object.assign(wsConfig, {
-            wsProtocol: protocol,
-            proxyMode: mode,
-            panelIPs: panelIPs
-        });
+    // 添加超时保护
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+            reject(new Error('WebSocket处理超时'));
+        }, 30000); // 30秒超时
+    });
 
-        switch (protocol) {
-            case 'vl':
-                return await VlOverWSHandler(request);
-            case 'tr':
-                return await TrOverWSHandler(request);
-            default:
-                return await fallback(request);
+    const wsPromise = (async () => {
+        try {
+            // 验证编码路径的有效性
+            if (!encodedPathConfig || encodedPathConfig.length > 1000) {
+                throw new Error('无效的路径配置');
+            }
+
+            // 验证是否为有效的 base64
+            if (!/^[A-Za-z0-9+/]+=*$/.test(encodedPathConfig)) {
+                throw new Error('路径配置格式无效');
+            }
+
+            const { protocol, mode, panelIPs } = JSON.parse(atob(encodedPathConfig));
+            
+            // 验证解析后的配置
+            if (!protocol || !['vl', 'tr'].includes(protocol)) {
+                throw new Error('不支持的协议类型');
+            }
+
+            Object.assign(wsConfig, {
+                wsProtocol: protocol,
+                proxyMode: mode,
+                panelIPs: panelIPs || []
+            });
+
+            switch (protocol) {
+                case 'vl':
+                    return await VlOverWSHandler(request);
+                case 'tr':
+                    return await TrOverWSHandler(request);
+                default:
+                    return await fallback(request);
+            }
+
+        } catch (error) {
+            console.error('WebSocket处理错误:', error);
+            return new Response('解析WebSocket路径配置失败: ' + error.message, { status: 400 });
         }
+    })();
 
+    try {
+        return await Promise.race([wsPromise, timeoutPromise]);
     } catch (error) {
-        return new Response('解析WebSocket路径配置失败', { status: 400 });
+        console.error('WebSocket超时或错误:', error);
+        return new Response('WebSocket处理超时', { status: 408 });
     }
 }
 
@@ -76,61 +109,94 @@ export async function handleLogin(request, env) {
 }
 
 export async function handleSubscriptions(request, env) {
-    const dataset = await getDataset(request, env);
-    settings = dataset.settings;
-    const { client, subPath } = httpConfig;
-    const path = decodeURIComponent(globalConfig.pathName);
+    try {
+        // 添加超时保护
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+                reject(new Error('订阅处理超时'));
+            }, 15000); // 15秒超时
+        });
 
-    switch (path) {
-        case `/sub/simple-normal/${subPath}`:
-            return await getSimpleNormalConfigs();
-        case `/sub/normal/${subPath}`:
-            switch (client) {
-                case 'sing-box':
-                    return await getSingBoxCustomConfig(env, false);
-                case 'clash':
-                    return await getClashNormalConfig(env);
-                case 'xray':
-                    return await getXrayCustomConfigs(env, false);
-                default:
-                    break;
+        const subPromise = (async () => {
+            const dataset = await getDataset(request, env);
+            settings = dataset.settings;
+            const { client, subPath } = httpConfig;
+            
+            // 安全解码路径
+            let path;
+            try {
+                path = decodeURIComponent(globalConfig.pathName);
+            } catch (error) {
+                throw new Error('路径解码失败');
             }
 
-        case `/sub/fragment/${subPath}`:
-            switch (client) {
-                case 'sing-box':
-                    return await getSingBoxCustomConfig(env, true);
-                case 'xray':
-                    return await getXrayCustomConfigs(env, true);
-                default:
-                    break;
+            // 验证路径长度
+            if (path.length > 500) {
+                throw new Error('路径过长');
             }
 
-        case `/sub/warp/${subPath}`:
-            switch (client) {
-                case 'clash':
-                    return await getClashWarpConfig(request, env, false);
-                case 'sing-box':
-                    return await getSingBoxWarpConfig(request, env);
-                case 'xray':
-                    return await getXrayWarpConfigs(request, env, false);
-                default:
-                    break;
-            }
+            switch (path) {
+                case `/sub/simple-normal/${subPath}`:
+                    return await getSimpleNormalConfigs();
+                    
+                case `/sub/normal/${subPath}`:
+                    switch (client) {
+                        case 'sing-box':
+                            return await getSingBoxCustomConfig(env, false);
+                        case 'clash':
+                            return await getClashNormalConfig(env);
+                        case 'xray':
+                            return await getXrayCustomConfigs(env, false);
+                        default:
+                            return new Response('不支持的客户端类型', { status: 400 });
+                    }
 
-        case `/sub/warp-pro/${subPath}`:
-            switch (client) {
-                case 'clash':
-                    return await getClashWarpConfig(request, env, true);
-                case 'xray-knocker':
-                case 'xray':
-                    return await getXrayWarpConfigs(request, env, true);
-                default:
-                    break;
-            }
+                case `/sub/fragment/${subPath}`:
+                    switch (client) {
+                        case 'sing-box':
+                            return await getSingBoxCustomConfig(env, true);
+                        case 'xray':
+                            return await getXrayCustomConfigs(env, true);
+                        default:
+                            return new Response('不支持的客户端类型', { status: 400 });
+                    }
 
-        default:
-            return await fallback(request);
+                case `/sub/warp/${subPath}`:
+                    switch (client) {
+                        case 'clash':
+                            return await getClashWarpConfig(request, env, false);
+                        case 'sing-box':
+                            return await getSingBoxWarpConfig(request, env);
+                        case 'xray':
+                            return await getXrayWarpConfigs(request, env, false);
+                        default:
+                            return new Response('不支持的客户端类型', { status: 400 });
+                    }
+
+                case `/sub/warp-pro/${subPath}`:
+                    switch (client) {
+                        case 'clash':
+                            return await getClashWarpConfig(request, env, true);
+                        case 'xray-knocker':
+                        case 'xray':
+                            return await getXrayWarpConfigs(request, env, true);
+                        default:
+                            return new Response('不支持的客户端类型', { status: 400 });
+                    }
+
+                default:
+                    return await fallback(request);
+            }
+        })();
+
+        return await Promise.race([subPromise, timeoutPromise]);
+        
+    } catch (error) {
+        console.error('订阅处理错误:', error);
+        return new Response('订阅处理失败: ' + error.message, { 
+            status: 500,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        });
     }
 }
 
@@ -171,17 +237,41 @@ async function getSettings(request, env) {
 }
 
 export async function fallback(request) {
-    const url = new URL(request.url);
-    url.hostname = globalConfig.fallbackDomain;
-    url.protocol = 'https:';
-    const newRequest = new Request(url.toString(), {
-        method: request.method,
-        headers: request.headers,
-        body: request.body,
-        redirect: 'manual'
-    });
+    try {
+        const url = new URL(request.url);
+        
+        // 防止无限重定向
+        if (url.hostname === globalConfig.fallbackDomain) {
+            return new Response('Fallback loop detected', { status: 500 });
+        }
+        
+        url.hostname = globalConfig.fallbackDomain || 'www.baidu.com';
+        url.protocol = 'https:';
+        
+        const newRequest = new Request(url.toString(), {
+            method: request.method,
+            headers: request.headers,
+            body: request.body,
+            redirect: 'manual'
+        });
 
-    return await fetch(newRequest);
+        // 添加超时保护
+        const fetchPromise = fetch(newRequest);
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+                reject(new Error('Fallback请求超时'));
+            }, 10000); // 10秒超时
+        });
+
+        return await Promise.race([fetchPromise, timeoutPromise]);
+        
+    } catch (error) {
+        console.error('Fallback错误:', error);
+        return new Response('Fallback failed: ' + error.message, { 
+            status: 502,
+            headers: { 'Content-Type': 'text/plain' }
+        });
+    }
 }
 
 async function getMyIP(request) {
