@@ -210,10 +210,14 @@ async function getMyIP(request) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
-    // 备用 API 列表
+    // 备用 API 列表 - 优先使用支持中文的服务
     const apis = [
         {
-            url: `https://ipapi.co/${ip}/json/`,
+            url: `http://ip-api.com/json/${ip}?lang=zh-CN`,
+            transform: (data) => data
+        },
+        {
+            url: `https://ipapi.co/${ip}/json/?lang=zh`,
             transform: (data) => ({
                 status: 'success',
                 country: data.country_name,
@@ -228,29 +232,6 @@ async function getMyIP(request) {
                 isp: data.org,
                 org: data.org,
                 as: data.asn,
-                query: data.ip
-            })
-        },
-        {
-            url: `http://ip-api.com/json/${ip}?lang=zh-CN`,
-            transform: (data) => data
-        },
-        {
-            url: `https://ipinfo.io/${ip}/json`,
-            transform: (data) => ({
-                status: 'success',
-                country: data.country,
-                countryCode: data.country,
-                region: data.region,
-                regionName: data.region,
-                city: data.city,
-                zip: data.postal,
-                lat: parseFloat(data.loc?.split(',')[0]) || 0,
-                lon: parseFloat(data.loc?.split(',')[1]) || 0,
-                timezone: data.timezone,
-                isp: data.org,
-                org: data.org,
-                as: data.org,
                 query: data.ip
             })
         }
