@@ -171,33 +171,17 @@ async function getSettings(request, env) {
 }
 
 export async function fallback(request) {
-    try {
-        const url = new URL(request.url);
-        url.hostname = globalConfig.fallbackDomain;
-        url.protocol = 'https:';
-        
-        // 添加超时控制
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
-        
-        const newRequest = new Request(url.toString(), {
-            method: request.method,
-            headers: request.headers,
-            body: request.body,
-            redirect: 'manual',
-            signal: controller.signal
-        });
+    const url = new URL(request.url);
+    url.hostname = globalConfig.fallbackDomain;
+    url.protocol = 'https:';
+    const newRequest = new Request(url.toString(), {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        redirect: 'manual'
+    });
 
-        const response = await fetch(newRequest);
-        clearTimeout(timeoutId);
-        return response;
-    } catch (error) {
-        console.error('Fallback 请求失败:', error);
-        return new Response('服务暂时不可用', { 
-            status: 503,
-            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-        });
-    }
+    return await fetch(newRequest);
 }
 
 async function getMyIP(request) {

@@ -16,32 +16,16 @@ export async function handleTCPOutBound(
 ) {
     async function connectAndWrite(address, port) {
         // if (/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(address)) address = `${atob('d3d3Lg==')}${address}${atob('LnNzbGlwLmlv')}`;
-        
-        // 添加连接超时处理
-        const connectPromise = connect({
+        const tcpSocket = connect({
             hostname: address,
             port: port,
         });
-        
-        // 设置 15 秒超时，更短的超时时间
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('连接超时')), 15000);
-        });
-        
-        const tcpSocket = await Promise.race([connectPromise, timeoutPromise]);
-        
+
         remoteSocket.value = tcpSocket;
         log(`已连接到 ${address}:${port}`);
-        
-        try {
-            const writer = tcpSocket.writable.getWriter();
-            await writer.write(rawClientData); // first write, nomal is tls client hello
-            writer.releaseLock();
-        } catch (writeError) {
-            log(`写入数据失败: ${writeError.message}`);
-            throw writeError;
-        }
-        
+        const writer = tcpSocket.writable.getWriter();
+        await writer.write(rawClientData); // first write, nomal is tls client hello
+        writer.releaseLock();
         return tcpSocket;
     }
 
@@ -91,7 +75,7 @@ export async function handleTCPOutBound(
         const tcpSocket = await connectAndWrite(addressRemote, portRemote);
         remoteSocketToWS(tcpSocket, webSocket, VLResponseHeader, retry, log);
     } catch (error) {
-        console.error('连接失败:', error);
+        console.error('连接失败:', err);
         webSocket.close(1011, '连接失败');
     }
 }
@@ -100,38 +84,26 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
     // remote--> ws
     let VLHeader = VLResponseHeader;
     let hasIncomingData = false; // check if remoteSocket has incoming data
-    
-    // 添加超时处理，防止 pipeTo 挂起
-    const pipeTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('数据传输超时')), 20000); // 20秒超时
-    });
-    
-    const pipePromise = remoteSocket.readable
+    await remoteSocket.readable
         .pipeTo(
             new WritableStream({
                 start() { },
                 async write(chunk, controller) {
-                    try {
-                        hasIncomingData = true;
-                        // remoteChunkCount++;
-                        if (webSocket.readyState !== WS_READY_STATE_OPEN) {
-                            controller.error("webSocket.readyState 未打开，可能已关闭");
-                            return;
-                        }
-                        if (VLHeader) {
-                            webSocket.send(await new Blob([VLHeader, chunk]).arrayBuffer());
-                            VLHeader = null;
-                        } else {
-                            // seems no need rate limit this, CF seems fix this??..
-                            // if (remoteChunkCount > 20000) {
-                            // 	// cf one package is 4096 byte(4kb),  4096 * 20000 = 80M
-                            // 	await delay(1);
-                            // }
-                            webSocket.send(chunk);
-                        }
-                    } catch (writeError) {
-                        log(`写入 WebSocket 错误: ${writeError.message}`);
-                        controller.error(writeError);
+                    hasIncomingData = true;
+                    // remoteChunkCount++;
+                    if (webSocket.readyState !== WS_READY_STATE_OPEN) {
+                        controller.error("webSocket.readyState 未打开，可能已关闭");
+                    }
+                    if (VLHeader) {
+                        webSocket.send(await new Blob([VLHeader, chunk]).arrayBuffer());
+                        VLHeader = null;
+                    } else {
+                        // seems no need rate limit this, CF seems fix this??..
+                        // if (remoteChunkCount > 20000) {
+                        // 	// cf one package is 4096 byte(4kb),  4096 * 20000 = 80M
+                        // 	await delay(1);
+                        // }
+                        webSocket.send(chunk);
                     }
                 },
                 close() {
@@ -142,21 +114,11 @@ async function remoteSocketToWS(remoteSocket, webSocket, VLResponseHeader, retry
                     console.error(`远程连接!.readable 中止`, reason);
                 },
             })
-        );
-    
-    try {
-        await Promise.race([pipePromise, pipeTimeout]);
-    } catch (error) {
-        console.error(`VLRemoteSocketToWS 发生异常 `, error.stack || error);
-        safeCloseWebSocket(webSocket);
-        
-        // 如果是超时错误且没有数据，尝试重试
-        if (error.message === '数据传输超时' && hasIncomingData === false && retry) {
-            log(`数据传输超时，尝试重试`);
-            retry();
-            return;
-        }
-    }
+        )
+        .catch((error) => {
+            console.error(`VLRemoteSocketToWS 发生异常 `, error.stack || error);
+            safeCloseWebSocket(webSocket);
+        });
 
     // seems is cf connect socket have error,
     // 1. Socket.closed will have error
@@ -251,21 +213,11 @@ export function safeCloseWebSocket(socket) {
 async function getDynamicProxyIP(address, prefix) {
     let finalAddress = address;
     if (!isIPv4(address)) {
-        // 添加 DNS 解析超时
-        const dnsTimeout = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('DNS解析超时')), 5000); // 5秒超时
-        });
-        
-        try {
-            const dnsPromise = resolveDNS(address, true);
-            const { ipv4 } = await Promise.race([dnsPromise, dnsTimeout]);
-            if (ipv4.length) {
-                finalAddress = ipv4[0];
-            } else {
-                throw new Error('无法在DNS记录中找到IPv4');
-            }
-        } catch (error) {
-            throw new Error(`DNS解析失败: ${error.message}`);
+        const { ipv4 } = await resolveDNS(address, true);
+        if (ipv4.length) {
+            finalAddress = ipv4[0];
+        } else {
+            throw new Error('无法在DNS记录中找到IPv4');
         }
     }
 

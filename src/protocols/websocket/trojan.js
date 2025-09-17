@@ -17,70 +17,47 @@ export async function TrOverWSHandler(request) {
         value: null,
     };
     let udpStreamWrite = null;
-    
-    // 添加 WebSocket 超时处理
-    const wsTimeout = setTimeout(() => {
-        log('Trojan WebSocket 处理超时，强制关闭连接');
-        try {
-            if (webSocket.readyState === 1) { // OPEN
-                webSocket.close(1011, 'WebSocket处理超时');
-            }
-        } catch (e) {
-            console.error('关闭超时 WebSocket 时出错:', e);
-        }
-    }, 30000); // 30秒总超时
 
     readableWebSocketStream
         .pipeTo(
             new WritableStream({
                 async write(chunk, controller) {
-                    try {
-                        if (udpStreamWrite) {
-                            return udpStreamWrite(chunk);
-                        }
-
-                        if (remoteSocketWapper.value) {
-                            const writer = remoteSocketWapper.value.writable.getWriter();
-                            await writer.write(chunk);
-                            writer.releaseLock();
-                            return;
-                        }
-
-                        const {
-                            hasError,
-                            message,
-                            portRemote = 443,
-                            addressRemote = "",
-                            rawClientData,
-                        } = parseTRHeader(chunk);
-
-                        address = addressRemote;
-                        portWithRandomLog = `${portRemote}--${Math.random()} tcp`;
-
-                        if (hasError) {
-                            log(`Trojan 头部解析错误: ${message}`);
-                            webSocket.close(1002, message);
-                            return;
-                        }
-
-                        try {
-                            await handleTCPOutBound(
-                                remoteSocketWapper, 
-                                addressRemote, 
-                                portRemote, 
-                                rawClientData, 
-                                webSocket, 
-                                null, 
-                                log
-                            );
-                        } catch (tcpError) {
-                            log(`TCP 连接错误: ${tcpError.message}`);
-                            webSocket.close(1011, 'TCP连接失败');
-                        }
-                    } catch (error) {
-                        log(`写入流错误: ${error.message}`);
-                        webSocket.close(1011, '处理错误');
+                    if (udpStreamWrite) {
+                        return udpStreamWrite(chunk);
                     }
+
+                    if (remoteSocketWapper.value) {
+                        const writer = remoteSocketWapper.value.writable.getWriter();
+                        await writer.write(chunk);
+                        writer.releaseLock();
+                        return;
+                    }
+
+                    const {
+                        hasError,
+                        message,
+                        portRemote = 443,
+                        addressRemote = "",
+                        rawClientData,
+                    } = parseTRHeader(chunk);
+
+                    address = addressRemote;
+                    portWithRandomLog = `${portRemote}--${Math.random()} tcp`;
+
+                    if (hasError) {
+                        throw new Error(message);
+                        // return;
+                    }
+
+                    handleTCPOutBound(
+                        remoteSocketWapper, 
+                        addressRemote, 
+                        portRemote, 
+                        rawClientData, 
+                        webSocket, 
+                        null, 
+                        log
+                    );
                 },
                 close() {
                     log(`readableWebSocketStream 已关闭`);
@@ -92,19 +69,6 @@ export async function TrOverWSHandler(request) {
         )
         .catch((err) => {
             log("readableWebSocketStream pipeTo 错误", err);
-            // 确保 WebSocket 被关闭
-            try {
-                if (webSocket.readyState === 1) { // OPEN
-                    webSocket.close(1011, 'Stream处理错误');
-                }
-            } catch (closeError) {
-                log("关闭 WebSocket 时出错", closeError);
-            }
-        })
-        .finally(() => {
-            // 清理超时定时器
-            clearTimeout(wsTimeout);
-            log('Trojan WebSocket 处理完成，清理资源');
         });
 
     return new Response(null, {
