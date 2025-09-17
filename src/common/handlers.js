@@ -221,24 +221,26 @@ async function getMyIP(request) {
             })
         },
         {
-            name: 'ip9.com.cn',
-            url: `https://ip9.com.cn/get?ip=${ip}`,
+            name: 'baidu',
+            url: `https://qifu.baidu.com/api/v1/ip-portrait/brief-info?ip=${ip}`,
             transform: (data) => ({
                 status: 'success',
-                country: data.data.country,
-                countryCode: data.data.country_code,
-                region: data.data.prov,
-                regionName: data.data.prov,
-                city: data.data.city,
-                zip: data.data.post_code,
-                lat: parseFloat(data.data.lat) || 0,
-                lon: parseFloat(data.data.lng) || 0,
+                country: data.data?.country || '',
+                countryCode: '',
+                region: data.data?.province || '',
+                regionName: data.data?.province || '',
+                city: data.data?.city || '',
+                zip: '',
+                lat: 0,
+                lon: 0,
                 timezone: '',
-                isp: data.data.isp,
-                org: data.data.isp,
-                as: data.data.isp,
-                query: data.data.ip,
-                apiSource: 'ip9.com.cn'
+                isp: data.data?.isp || '',
+                org: data.data?.company || data.data?.isp || '',
+                as: data.data?.isp || '',
+                query: data.data?.query_ip || ip,
+                scene: data.data?.scene || '',
+                riskScore: data.data?.risk_score || '',
+                apiSource: 'baidu'
             })
         }
     ];
@@ -249,7 +251,26 @@ async function getMyIP(request) {
             try {
                 const response = await fetch(api.url, {
                     signal: controller.signal,
-                    headers: {
+                    headers: api.name === 'baidu' ? {
+                        'Accept': '*/*',
+                        'Accept-Encoding': 'gzip, deflate, br, zstd',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Acs-Token': '601',
+                        'Cache-Control': 'no-cache',
+                        'Connection': 'keep-alive',
+                        'DNT': '1',
+                        'Host': 'qifu.baidu.com',
+                        'Origin': 'https://www.baidu.com',
+                        'Pragma': 'no-cache',
+                        'Referer': 'https://www.baidu.com/',
+                        'Sec-Fetch-Dest': 'empty',
+                        'Sec-Fetch-Mode': 'cors',
+                        'Sec-Fetch-Site': 'same-site',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+                        'sec-ch-ua': '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
+                        'sec-ch-ua-mobile': '?0',
+                        'sec-ch-ua-platform': '"Windows"'
+                    } : {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                         'Accept': 'application/json, text/plain, */*',
                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
