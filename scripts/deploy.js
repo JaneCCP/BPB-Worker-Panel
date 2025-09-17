@@ -340,12 +340,15 @@ async function enableWorkersLogs() {
             }
         );
         
-        // 检查日志是否已启用
+        // 检查日志是否已启用 - 需要同时检查 observability.enabled 和 logs.enabled
+        const observabilityEnabled = currentSettings.observability && currentSettings.observability.enabled;
         const logsEnabled = currentSettings.observability && 
             currentSettings.observability.logs && 
             currentSettings.observability.logs.enabled;
         
-        if (logsEnabled) {
+        const fullLogsEnabled = observabilityEnabled && logsEnabled;
+        
+        if (fullLogsEnabled) {
             console.log('✅ 检测到Workers日志已启用！');
             console.log('📋 当前日志配置详情:');
             console.log(`   - 可观测性: ${currentSettings.observability.enabled ? '✅ 已启用' : '❌ 未启用'}`);
