@@ -221,26 +221,35 @@ async function getMyIP(request) {
             })
         },
         {
-            name: 'baidu',
-            url: `https://qifu.baidu.com/api/v1/ip-portrait/brief-info?ip=${ip}`,
+            name: 'demo.ip-api',
+            url: `http://demo.ip-api.com/json/${ip}?lang=zh-CN`,
+            transform: (data) => ({
+                ...data,
+                apiSource: 'demo.ip-api'
+            })
+        },
+        {
+            name: 'ipwhois',
+            url: `https://ipwhois.app/json/${ip}?format=json&lang=zh-CN`,
             transform: (data) => ({
                 status: 'success',
-                country: data.data?.country || '',
-                countryCode: '',
-                region: data.data?.province || '',
-                regionName: data.data?.province || '',
-                city: data.data?.city || '',
+                country: data.country,
+                countryCode: data.country_code,
+                region: data.region,
+                regionName: data.region,
+                city: data.city,
                 zip: '',
-                lat: 0,
-                lon: 0,
-                timezone: '',
-                isp: data.data?.isp || '',
-                org: data.data?.company || data.data?.isp || '',
-                as: data.data?.isp || '',
-                query: data.data?.query_ip || ip,
-                scene: data.data?.scene || '',
-                riskScore: data.data?.risk_score || '',
-                apiSource: 'baidu'
+                lat: data.latitude,
+                lon: data.longitude,
+                timezone: data.timezone,
+                isp: data.isp,
+                org: data.org,
+                as: data.asn,
+                query: data.ip,
+                continent: data.continent,
+                currency: data.currency,
+                currencyCode: data.currency_code,
+                apiSource: 'ipwhois'
             })
         }
     ];
@@ -251,26 +260,7 @@ async function getMyIP(request) {
             try {
                 const response = await fetch(api.url, {
                     signal: controller.signal,
-                    headers: api.name === 'baidu' ? {
-                        'Accept': '*/*',
-                        'Accept-Encoding': 'gzip, deflate, br, zstd',
-                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                        'Acs-Token': '601',
-                        'Cache-Control': 'no-cache',
-                        'Connection': 'keep-alive',
-                        'DNT': '1',
-                        'Host': 'qifu.baidu.com',
-                        'Origin': 'https://www.baidu.com',
-                        'Pragma': 'no-cache',
-                        'Referer': 'https://www.baidu.com/',
-                        'Sec-Fetch-Dest': 'empty',
-                        'Sec-Fetch-Mode': 'cors',
-                        'Sec-Fetch-Site': 'same-site',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-                        'sec-ch-ua': '"Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"',
-                        'sec-ch-ua-mobile': '?0',
-                        'sec-ch-ua-platform': '"Windows"'
-                    } : {
+                    headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                         'Accept': 'application/json, text/plain, */*',
                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
