@@ -5,14 +5,9 @@ permissions:
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 */1 * * *'
 
 jobs:
   build:
-    if: |
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'schedule' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
 
     steps:
