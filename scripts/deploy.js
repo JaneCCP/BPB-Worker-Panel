@@ -332,8 +332,8 @@ async function enableWorkersLogs() {
     console.log('📊 检查Workers日志配置状态...');
     try {
         console.log('📋 获取当前日志设置...');
-        // 先获取当前日志配置
-        const currentSettings = await cloudflare.workers.scripts.settings.get(
+        // 使用正确的API端点获取当前日志配置
+        const currentSettings = await cloudflare.workers.scripts.scriptAndVersionSettings.get(
             CLOUDFLARE_WORKER_NAME,
             {
                 account_id: CLOUDFLARE_ACCOUNT_ID
@@ -366,8 +366,8 @@ async function enableWorkersLogs() {
         } else {
             console.log('⚠️ 检测到Workers日志未启用');
             console.log('📝 正在启用Workers日志功能...');
-            // 根据 settings.ts 接口使用官方标准的完整配置结构
-            const logResult = await cloudflare.workers.scripts.settings.edit(
+            // 使用正确的API端点启用日志功能
+            const logResult = await cloudflare.workers.scripts.scriptAndVersionSettings.edit(
                 CLOUDFLARE_WORKER_NAME,
                 {
                     account_id: CLOUDFLARE_ACCOUNT_ID,
