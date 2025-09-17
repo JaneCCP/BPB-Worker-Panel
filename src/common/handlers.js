@@ -206,7 +206,7 @@ async function getMyIP(request) {
     const ip = (await request.text()).trim();
     
     // 创建超时控制器
-    const timeoutMs = 3000; // 5秒超时
+    const timeoutMs = 3000; // 3秒超时
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
