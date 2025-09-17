@@ -340,18 +340,28 @@ async function enableWorkersLogs() {
             }
         );
         
-        // 检查日志是否已启用
-        const logsEnabled = currentSettings.observability && 
+        // 检查日志是否已启用 - 改进检测逻辑
+        const hasObservability = currentSettings.observability && currentSettings.observability.enabled;
+        const hasLogs = currentSettings.observability && 
             currentSettings.observability.logs && 
             currentSettings.observability.logs.enabled;
+        const logsEnabled = hasObservability && hasLogs;
+        
+        // 调试输出当前配置状态
+        console.log('🔍 当前日志配置状态:');
+        console.log(`   - observability 存在: ${!!currentSettings.observability}`);
+        console.log(`   - observability.enabled: ${currentSettings.observability?.enabled}`);
+        console.log(`   - logs 存在: ${!!(currentSettings.observability?.logs)}`);
+        console.log(`   - logs.enabled: ${currentSettings.observability?.logs?.enabled}`);
+        console.log(`   - 综合判断结果: ${logsEnabled ? '已启用' : '未启用'}`);
         
         if (logsEnabled) {
             console.log('✅ 检测到Workers日志已启用！');
             console.log('📋 当前日志配置详情:');
-            console.log(`   - 可观测性: ${currentSettings.observability.enabled ? '✅ 已启用' : '❌ 未启用'}`);
-            console.log(`   - 日志记录: ${currentSettings.observability.logs.enabled ? '✅ 已启用' : '❌ 未启用'}`);
-            console.log(`   - 调用日志: ${currentSettings.observability.logs.invocation_logs ? '✅ 已启用' : '❌ 未启用'}`);
-            console.log(`   - 采样率: ${(currentSettings.observability.logs.head_sampling_rate * 100)}%`);
+            console.log(`   - 可观测性: ${currentSettings.observability?.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 日志记录: ${currentSettings.observability?.logs?.enabled ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 调用日志: ${currentSettings.observability?.logs?.invocation_logs ? '✅ 已启用' : '❌ 未启用'}`);
+            console.log(`   - 采样率: ${(currentSettings.observability?.logs?.head_sampling_rate * 100) || 0}%`);
             console.log(`   - Logpush: ${currentSettings.logpush ? '✅ 已启用' : '❌ 未启用'}`);
         } else {
             console.log('⚠️ 检测到Workers日志未启用');
