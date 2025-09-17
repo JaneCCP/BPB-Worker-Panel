@@ -206,11 +206,30 @@ async function getMyIP(request) {
     const ip = (await request.text()).trim();
     try {
         const response = await fetch(`http://ip-api.com/json/${ip}?nocache=${Date.now()}&lang=zh-CN`);
+        
+        // 检查响应状态
+        if (!response.ok) {
+            throw new Error(`API 请求失败: ${response.status} ${response.statusText}`);
+        }
+        
+        // 检查响应内容类型
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            throw new Error(`API 返回非 JSON 格式数据: ${text.substring(0, 100)}`);
+        }
+        
         const geoLocation = await response.json();
+        
+        // 检查 API 返回的错误状态
+        if (geoLocation.status === 'fail') {
+            throw new Error(`IP 查询失败: ${geoLocation.message || '未知错误'}`);
+        }
+        
         return await respond(true, 200, null, geoLocation);
     } catch (error) {
         console.error('获取IP地址时出错:', error);
-        return await respond(false, 500, `获取IP地址时出错: ${error}`)
+        return await respond(false, 500, `获取IP地址时出错: ${error.message || error}`)
     }
 }
 
