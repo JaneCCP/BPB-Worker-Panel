@@ -328,6 +328,21 @@ async function getMyIP(request) {
             throw new Error('所有 API 都返回了无效数据');
         }
         
+        // 格式化输出查询结果到日志
+        const logInfo = {
+            查询IP: ip,
+            国家: geoLocation.country || '未知',
+            地区: geoLocation.regionName || geoLocation.region || '未知',
+            城市: geoLocation.city || '未知',
+            ISP: geoLocation.isp || '未知',
+            组织: geoLocation.org || '未知',
+            时区: geoLocation.timezone || '未知',
+            经纬度: geoLocation.lat && geoLocation.lon ? `${geoLocation.lat}, ${geoLocation.lon}` : '未知',
+            数据源: geoLocation.apiSource || '未知'
+        };
+        
+        console.log('IP地址查询结果:', JSON.stringify(logInfo, null, 2));
+        
         return await respond(true, 200, null, geoLocation);
         
     } catch (error) {
