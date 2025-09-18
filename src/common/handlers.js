@@ -203,7 +203,39 @@ export async function fallback(request) {
 }
 
 async function getMyIP(request) {
-    const ip = (await request.text()).trim();
+    // 自动获取来访者的真实IP地址
+    let ip = request.headers.get('CF-Connecting-IP') || // Cloudflare
+             request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || // 代理服务器
+             request.headers.get('X-Real-IP') || // Nginx代理
+             request.headers.get('X-Client-IP') || // Apache代理
+             request.headers.get('True-Client-IP') || // Akamai和Cloudflare
+             request.headers.get('Fastly-Client-IP') || // Fastly CDN
+             request.headers.get('X-Cluster-Client-IP') || // 集群
+             request.headers.get('X-Forwarded') || // 其他代理
+             request.headers.get('Forwarded-For') || // RFC 7239
+             request.headers.get('Forwarded') || // RFC 7239
+             '未知'; // 如果都获取不到
+    
+    // 如果是POST请求且有请求体，则使用请求体中的IP（保持向后兼容）
+    if (request.method === 'POST') {
+        try {
+            const bodyText = await request.text();
+            if (bodyText && bodyText.trim()) {
+                ip = bodyText.trim();
+            }
+        } catch (error) {
+            // 如果读取请求体失败，继续使用从headers获取的IP
+            console.log('读取请求体失败，使用headers中的IP:', error);
+        }
+    }
+    
+    // 验证IP地址格式
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
+    
+    if (ip === '未知' || (!ipv4Regex.test(ip) && !ipv6Regex.test(ip))) {
+        return await respond(false, 400, `无法获取有效的IP地址: ${ip}`);
+    }
     
     // 创建超时控制器
     const timeoutMs = 3000; // 3秒超时
