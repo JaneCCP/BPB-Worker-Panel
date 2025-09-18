@@ -31,7 +31,7 @@ export async function getSimpleNormalConfigs() {
             config.username = globalConfig.userID;
             config.searchParams.append('encryption', 'none');
         } else {
-            config.username = globalConfig.TrPass;
+            config.username = encodeURIComponent(globalConfig.TrPass);
             pathProtocol = 'tr';
         }
 
