@@ -9,7 +9,7 @@ export async function getSimpleNormalConfigs() {
 
     // 检查地址列表是否为空，如果为空则返回错误信息
     if (!Addresses || Addresses.length === 0) {
-        const errorMessage = '配置错误：未设置任何可用的 CDN 地址或优选域名。请在控制面板中配置。';
+        const errorMessage = '配置错误：未设置任何可用的 CDN 地址或优选域名。请在控制面板中配置！';
         return new Response(errorMessage, {
             status: 400,
             headers: {
