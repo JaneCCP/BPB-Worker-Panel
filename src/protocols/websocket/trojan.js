@@ -41,7 +41,7 @@ export async function TrOverWSHandler(request) {
                     } = parseTRHeader(chunk);
 
                     address = addressRemote;
-                    portWithRandomLog = `${portRemote}--${Math.random()} tcp`;
+                    portWithRandomLog = `${portRemote}--${Math.random().toFixed(4)} tcp`;
 
                     if (hasError) {
                         throw new Error(message);
