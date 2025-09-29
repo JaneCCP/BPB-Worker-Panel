@@ -2,6 +2,7 @@ name: Build and Release & Deploy
 
 permissions:
   contents: write
+  actions: write
 
 on:
   workflow_dispatch:
