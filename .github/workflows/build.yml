@@ -121,7 +121,7 @@ jobs:
             
             // 计算7天前的时间戳
             const sevenDaysAgo = new Date();
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 1);
             
             console.log(`正在清理 ${sevenDaysAgo.toISOString()} 之前的 artifacts...`);
             
