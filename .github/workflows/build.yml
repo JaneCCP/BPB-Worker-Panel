@@ -1,4 +1,4 @@
-name: Build and Release & Deploy
+name: Build and Release & Deploy and Cleanup
 
 permissions:
   contents: write
